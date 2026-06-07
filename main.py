@@ -19,7 +19,7 @@ class PiezaUpdate(BaseModel):
     numero_pieza: int
     peso_entrada_kg: float
 
-app = FastAPI(title="Sistema de Romaneo")
+app = FastAPI(title="Sistema de Romaneo", redirect_slashes=False)
 
 # CORS: usar ALLOWED_ORIGINS="https://tu-app.vercel.app,https://otro-dominio.com"
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")

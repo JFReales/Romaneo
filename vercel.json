@@ -16,7 +16,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "main.py?path=$1"
+      "dest": "main.py"
     },
     {
       "src": "/(.*)",
