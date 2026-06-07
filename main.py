@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +9,8 @@ import models
 import schemas
 from database import engine, get_db
 from pydantic import BaseModel
+import csv
+import codecs
 
 # Esto asegura que las tablas se creen en PostgreSQL al iniciar
 models.Base.metadata.create_all(bind=engine)
@@ -312,6 +314,50 @@ def actualizar_pieza(pieza_id: int, pieza_update: PiezaUpdate, db: Session = Dep
     
     return {"mensaje": "Pieza actualizada correctamente"}
 
+@app.delete("/piezas/{pieza_id}")
+def eliminar_pieza(pieza_id: int, db: Session = Depends(get_db)):
+    db_pieza = db.query(models.Pieza).filter(models.Pieza.id == pieza_id).first()
+    if not db_pieza:
+        raise HTTPException(status_code=404, detail="Pieza no encontrada.")
+    
+    # --- CONTROL DE SEGURIDAD ---
+    # Si alguna parte de la pieza ya no está en stock (se vendió), bloqueamos el borrado
+    if not db_pieza.en_stock_pierna or not db_pieza.en_stock_espalda:
+        raise HTTPException(
+            status_code=400, 
+            detail="Error: No podés eliminar una pieza que ya tiene cortes despachados."
+        )
+        
+    db.delete(db_pieza)
+    db.commit()
+    
+    return {"mensaje": "Pieza eliminada correctamente"}
+
+@app.get("/piezas/buscar/{numero_pieza}")
+def buscar_pieza_global(numero_pieza: int, db: Session = Depends(get_db)):
+    # Buscamos las piezas que tengan ese número y que NO estén 100% vendidas
+    piezas = db.query(models.Pieza).join(models.Tropa).filter(
+        models.Pieza.numero_pieza == numero_pieza,
+        (models.Pieza.en_stock_pierna == True) | (models.Pieza.en_stock_espalda == True)
+    ).all()
+    
+    resultados = []
+    for p in piezas:
+        resultados.append({
+            "id": p.id,
+            "numero_pieza": p.numero_pieza,
+            "tropa_id": p.tropa_id,
+            "numero_tropa": p.tropa.numero_tropa,
+            "matadero": p.tropa.matadero,
+            "peso_entrada_kg": float(p.peso_entrada_kg),
+            "peso_salida_camara_kg": float(p.peso_salida_camara_kg) if p.peso_salida_camara_kg else None,
+            "en_stock_pierna": p.en_stock_pierna,
+            "en_stock_espalda": p.en_stock_espalda,
+            "peso_salida_pierna_kg": float(p.peso_salida_pierna_kg) if p.peso_salida_pierna_kg else 0.0,
+            "peso_salida_espalda_kg": float(p.peso_salida_espalda_kg) if p.peso_salida_espalda_kg else 0.0
+        })
+    return resultados
+
 # Endpoint para ver el "mapa" completo de una tropa
 @app.get("/tropas/{tropa_id}/mapa-completo")
 def obtener_mapa_tropa(tropa_id: int, db: Session = Depends(get_db)):
@@ -349,4 +395,97 @@ def obtener_mapa_tropa(tropa_id: int, db: Session = Depends(get_db)):
         "fecha_ingreso": tropa.fecha_ingreso.strftime("%d/%m/%Y"),
         "firma": tropa.firma,
         "piezas": piezas_detalle
+    }
+
+@app.post("/piezas/salidas-lote/")
+def procesar_salidas_lote(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # Verificamos que sea un archivo válido
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="El archivo debe ser formato .csv")
+
+    # Leemos el archivo línea por línea
+    csvReader = csv.DictReader(codecs.iterdecode(file.file, 'utf-8'))
+    
+    procesadas = 0
+    errores = []
+
+    for fila_num, fila in enumerate(csvReader, start=2): # Start 2 por el encabezado
+        try:
+            # Los nombres de las columnas deben coincidir exactamente con el Excel/CSV
+            num_tropa = fila.get('tropa')
+            num_pieza = int(fila.get('pieza'))
+            destino = fila.get('cliente')
+            peso_camara = float(fila.get('peso_camara')) if fila.get('peso_camara') else None
+            corte = fila.get('corte') # "Completa", "Pierna", "Espalda"
+            peso_corte = float(fila.get('peso_corte')) if fila.get('peso_corte') else None
+
+            # 1. Buscar la Tropa
+            tropa_db = db.query(models.Tropa).filter(models.Tropa.numero_tropa == num_tropa).first()
+            if not tropa_db:
+                errores.append(f"Fila {fila_num}: Tropa {num_tropa} no encontrada.")
+                continue
+
+            # 2. Buscar la Pieza
+            pieza_db = db.query(models.Pieza).filter(
+                models.Pieza.tropa_id == tropa_db.id,
+                models.Pieza.numero_pieza == num_pieza
+            ).first()
+            if not pieza_db:
+                errores.append(f"Fila {fila_num}: Pieza {num_pieza} no encontrada en tropa {num_tropa}.")
+                continue
+
+            # 3. Validaciones básicas de stock
+            if corte == 'Completa' and (not pieza_db.en_stock_pierna or not pieza_db.en_stock_espalda):
+                errores.append(f"Fila {fila_num}: La pieza {num_pieza} ya tiene partes vendidas, no puede salir Completa.")
+                continue
+
+            # 4. Asignar peso de cámara si es la primera salida
+            if not pieza_db.peso_salida_camara_kg:
+                if not peso_camara:
+                    errores.append(f"Fila {fila_num}: Falta el peso_camara para la primera venta de la pieza {num_pieza}.")
+                    continue
+                pieza_db.peso_salida_camara_kg = peso_camara
+
+            peso_camara_efectivo = float(pieza_db.peso_salida_camara_kg)
+            ahora = datetime.utcnow()
+
+            # 5. Lógica de Despacho
+            if corte == 'Completa':
+                pieza_db.en_stock_pierna = False
+                pieza_db.destino_pierna = destino
+                pieza_db.fecha_salida_pierna = ahora
+                pieza_db.peso_salida_pierna_kg = peso_camara_efectivo / 2 # Mitad teórica o lo manejas a gusto
+
+                pieza_db.en_stock_espalda = False
+                pieza_db.destino_espalda = destino
+                pieza_db.fecha_salida_espalda = ahora
+                pieza_db.peso_salida_espalda_kg = peso_camara_efectivo / 2
+
+            elif corte == 'Pierna' and pieza_db.en_stock_pierna:
+                peso_real = peso_corte if pieza_db.en_stock_espalda else (peso_camara_efectivo - float(pieza_db.peso_salida_espalda_kg or 0))
+                pieza_db.en_stock_pierna = False
+                pieza_db.destino_pierna = destino
+                pieza_db.fecha_salida_pierna = ahora
+                pieza_db.peso_salida_pierna_kg = peso_real
+
+            elif corte == 'Espalda' and pieza_db.en_stock_espalda:
+                peso_real = peso_corte if pieza_db.en_stock_pierna else (peso_camara_efectivo - float(pieza_db.peso_salida_pierna_kg or 0))
+                pieza_db.en_stock_espalda = False
+                pieza_db.destino_espalda = destino
+                pieza_db.fecha_salida_espalda = ahora
+                pieza_db.peso_salida_espalda_kg = peso_real
+            
+            else:
+                errores.append(f"Fila {fila_num}: Corte {corte} inválido o sin stock para la pieza {num_pieza}.")
+                continue
+
+            db.commit()
+            procesadas += 1
+
+        except Exception as e:
+            errores.append(f"Fila {fila_num}: Error de formato o datos ({str(e)}).")
+
+    return {
+        "mensaje": f"Proceso finalizado. {procesadas} despachos exitosos.",
+        "errores": errores
     }
