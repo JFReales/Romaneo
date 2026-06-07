@@ -273,6 +273,7 @@ def obtener_stock(db: Session = Depends(get_db)):
     return stock
 
 # --- ENDPOINTS PARA PROVEEDORES ---
+@app.post("/proveedores")
 @app.post("/proveedores/", response_model=schemas.Proveedor)
 def crear_proveedor(proveedor: schemas.ProveedorCreate, db: Session = Depends(get_db)):
     prov_existente = db.query(models.Proveedor).filter(models.Proveedor.nombre == proveedor.nombre).first()
@@ -285,6 +286,7 @@ def crear_proveedor(proveedor: schemas.ProveedorCreate, db: Session = Depends(ge
     db.refresh(nuevo_prov)
     return nuevo_prov
 
+@app.get("/proveedores")
 @app.get("/proveedores/", response_model=list[schemas.Proveedor])
 def listar_proveedores(db: Session = Depends(get_db)):
     return db.query(models.Proveedor).all()
