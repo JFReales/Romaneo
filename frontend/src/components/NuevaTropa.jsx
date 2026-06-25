@@ -5,6 +5,7 @@ const NuevaTropa = () => {
   const [numeroTropa, setNumeroTropa] = useState('');
   const [matadero, setMatadero] = useState('');
   const [firma, setFirma] = useState('');
+  const [fechaIngreso, setFechaIngreso] = useState('');
 
   const [listaProveedores, setListaProveedores] = useState([]);
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
@@ -51,6 +52,7 @@ const NuevaTropa = () => {
     setNumeroTropa(tropa.numero_tropa);
     setMatadero(tropa.matadero);
     setFirma(tropa.firma);
+    setFechaIngreso(tropa.fecha_ingreso ? tropa.fecha_ingreso.slice(0, 10) : '');
 
     if (tropa.proveedor) {
       setProveedorSeleccionado(tropa.proveedor);
@@ -71,6 +73,7 @@ const NuevaTropa = () => {
     setNumeroTropa('');
     setMatadero('');
     setFirma('');
+    setFechaIngreso('');
     setBusquedaProveedor('');
     setProveedorSeleccionado(null);
     setMensaje({ texto: '', tipo: '' });
@@ -89,6 +92,7 @@ const NuevaTropa = () => {
       matadero,
       firma,
       proveedor_id: proveedorSeleccionado.id,
+      fecha_ingreso: fechaIngreso ? `${fechaIngreso}T00:00:00` : null,
     };
 
     try {
@@ -199,6 +203,17 @@ const NuevaTropa = () => {
             )}
           </div>
 
+          <div className="field-block">
+            <label htmlFor="fecha-ingreso">5. Fecha de Carga</label>
+            <input
+              id="fecha-ingreso"
+              type="date"
+              value={fechaIngreso}
+              onChange={(e) => setFechaIngreso(e.target.value)}
+              required
+            />
+          </div>
+
           <div className="inline-row" style={{ alignItems: 'stretch' }}>
             <button
               type="submit"
@@ -236,6 +251,7 @@ const NuevaTropa = () => {
                 <th>Matadero</th>
                 <th>Firma</th>
                 <th>Proveedor</th>
+                <th>Fecha Carga</th>
                 <th style={{ textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
@@ -246,6 +262,7 @@ const NuevaTropa = () => {
                   <td>{t.matadero}</td>
                   <td>{t.firma}</td>
                   <td>{t.proveedor?.nombre || 'Sin especificar'}</td>
+                  <td>{t.fecha_ingreso ? new Date(t.fecha_ingreso).toLocaleDateString('es-AR') : '--'}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => activarEdicion(t)} className="btn-sm btn-primary">
                       Editar

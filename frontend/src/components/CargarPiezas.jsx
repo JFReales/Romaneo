@@ -50,7 +50,8 @@ const CargarPiezas = ({ onCargaExitosa }) => {
         }
         try {
             const response = await api.get(`/tropas/${idTropa}/piezas/`);
-            setPiezasTropa(response.data);
+            const ordenadas = [...response.data].sort((a, b) => Number(a.numero_pieza) - Number(b.numero_pieza));
+            setPiezasTropa(ordenadas);
         } catch (error) {
             console.error("Error al cargar las piezas de la tropa", error);
         }
@@ -146,6 +147,27 @@ const CargarPiezas = ({ onCargaExitosa }) => {
             }
         } catch (error) {
             const errorMsg = error.response?.data?.detail || 'Error al eliminar la pieza';
+            setMensaje({ texto: errorMsg, tipo: 'error' });
+        }
+    };
+
+    const eliminarTodasLasPiezas = async () => {
+        if (!tropaSeleccionada) {
+            setMensaje({ texto: 'Primero seleccioná una tropa.', tipo: 'error' });
+            return;
+        }
+
+        if (!window.confirm('¿Seguro que querés eliminar TODAS las piezas de esta tropa? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        try {
+            const res = await api.delete(`/tropas/${tropaSeleccionada}/piezas/`);
+            setMensaje({ texto: `${res.data.eliminadas || 0} piezas eliminadas correctamente.`, tipo: 'success' });
+            cancelarEdicion();
+            cargarPiezasDeTropa(tropaSeleccionada);
+        } catch (error) {
+            const errorMsg = error.response?.data?.detail || 'No se pudieron eliminar las piezas.';
             setMensaje({ texto: errorMsg, tipo: 'error' });
         }
     };
@@ -389,7 +411,18 @@ const CargarPiezas = ({ onCargaExitosa }) => {
 
             {tropaSeleccionada && (
                 <section className="card content-block">
-                    <h3>Piezas de esta Tropa ({piezasCargadasActuales} cargadas)</h3>
+                    <div className="inline-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ marginBottom: 0 }}>Piezas de esta Tropa ({piezasCargadasActuales} cargadas)</h3>
+                        {piezasTropa.length > 0 && (
+                            <button
+                                onClick={eliminarTodasLasPiezas}
+                                className="btn-sm"
+                                style={{ backgroundColor: '#b91c1c', color: '#ffffff' }}
+                            >
+                                Eliminar todas las piezas
+                            </button>
+                        )}
+                    </div>
 
                     {piezasTropa.length === 0 ? (
                         <p style={{ color: '#64748b', fontStyle: 'italic' }}>Aún no hay piezas cargadas en esta tropa.</p>

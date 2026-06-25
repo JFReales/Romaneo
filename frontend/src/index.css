@@ -1,13 +1,13 @@
 :root {
-  --bg-page: #eef2f8;
+  --bg-page: #edf3fb;
   --bg-panel: #0f172a;
   --bg-card: #ffffff;
-  --bg-soft: #f7f9fc;
-  --text-main: #0f172a;
-  --text-soft: #4b5563;
+  --bg-soft: #f4f7fc;
+  --text-main: #0b1220;
+  --text-soft: #334155;
   --text-inverse: #f8fafc;
-  --line: #d7deea;
-  --line-strong: #c4cfdf;
+  --line: #cbd5e1;
+  --line-strong: #94a3b8;
   --primary: #0d6efd;
   --primary-hover: #0b5ed7;
   --success: #16a34a;
@@ -37,7 +37,7 @@ body {
 }
 
 body {
-  font-family: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
   color: var(--text-main);
   background:
     radial-gradient(circle at top left, #d9e7ff 0%, transparent 38%),
@@ -58,7 +58,7 @@ h3 {
 }
 
 label {
-  color: #1f2937;
+  color: #111827;
 }
 
 small {
@@ -80,7 +80,7 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #8a94a6;
+  color: #64748b;
 }
 
 input:hover,
@@ -186,6 +186,12 @@ td {
   border-color: #fecaca;
 }
 
+.alert-warning {
+  background: #fffbeb;
+  color: #78350f;
+  border-color: #fcd34d;
+}
+
 .table-modern {
   overflow: hidden;
   border-radius: var(--radius-md);
@@ -198,9 +204,13 @@ td {
 }
 
 .table-modern th {
-  color: #25324a;
+  color: #1e293b;
   font-weight: 700;
   border-bottom: 1px solid var(--line);
+}
+
+.table-modern td {
+  color: #0f172a;
 }
 
 .table-modern tbody tr:not(:last-child) td {
@@ -240,7 +250,7 @@ td {
 }
 
 .menu-link {
-  color: #dbeafe;
+  color: #eff6ff;
   text-decoration: none;
   font-size: 15px;
   padding: 12px 14px;
@@ -252,8 +262,8 @@ td {
 }
 
 .menu-link:hover {
-  background-color: rgba(147, 197, 253, 0.14);
-  border-color: rgba(191, 219, 254, 0.28);
+  background-color: rgba(147, 197, 253, 0.22);
+  border-color: rgba(191, 219, 254, 0.42);
 }
 
 .menu-link.active {

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, Literal # <--- Importamos Literal
+from typing import Optional, Literal
 from datetime import datetime
 
 FIRMAS_PERMITIDAS = Literal[
@@ -54,7 +54,8 @@ class TropaBase(BaseModel):
     numero_tropa: str
     matadero: MATADEROS_PERMITIDOS
     firma: FIRMAS_PERMITIDAS
-    proveedor_id: Optional[int] = None 
+    proveedor_id: Optional[int] = None
+    fecha_ingreso: Optional[datetime] = None
 
 class TropaCreate(TropaBase):
     pass
@@ -75,6 +76,12 @@ class RegistroSalidaRafaga(BaseModel):
     peso_salida_camara_kg: Optional[float] = None
     corte_a_salir: Optional[str] = None
     peso_corte_especifico: Optional[float] = None
+
+class SalidaCorteUpdate(BaseModel):
+    corte: Literal["Pierna", "Espalda"]
+    destino: Optional[str] = None
+    peso_salida_kg: Optional[float] = None
+    fecha_salida: Optional[datetime] = None
 
 # --- SCHEMAS PARA CLIENTES ---
 class ClienteBase(BaseModel):
