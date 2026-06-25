@@ -167,17 +167,9 @@ def actualizar_tropa(tropa_id: int, tropa_update: schemas.TropaCreate, db: Sessi
 
 @app.post("/tropas/{tropa_id}/piezas/", response_model=schemas.Pieza)
 def cargar_pieza(tropa_id: int, pieza: schemas.PiezaCreate, db: Session = Depends(get_db)):
-    tropa = db.query(models.Tropa).filter(models.Tropa.id == tropa_id).first()
-    if not tropa:
+    tropa_existe = db.query(models.Tropa.id).filter(models.Tropa.id == tropa_id).first()
+    if not tropa_existe:
         raise HTTPException(status_code=404, detail="Tropa no encontrada.")
-
-    pieza_duplicada = db.query(models.Pieza).filter(
-        models.Pieza.tropa_id == tropa_id,
-        models.Pieza.numero_pieza == pieza.numero_pieza
-    ).first()
-    
-    if pieza_duplicada:
-        raise HTTPException(status_code=400, detail=f"Error: La pieza {pieza.numero_pieza} ya fue cargada.")
 
     nueva_pieza = models.Pieza(
         tropa_id=tropa_id,
@@ -185,9 +177,14 @@ def cargar_pieza(tropa_id: int, pieza: schemas.PiezaCreate, db: Session = Depend
         peso_entrada_kg=pieza.peso_entrada_kg # <--- Guardamos los kg iniciales
     )
     
-    db.add(nueva_pieza)
-    db.commit()
-    db.refresh(nueva_pieza)
+    try:
+        db.add(nueva_pieza)
+        db.commit()
+        db.refresh(nueva_pieza)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error: La pieza {pieza.numero_pieza} ya fue cargada.")
+
     return nueva_pieza
 
 # --- ENDPOINT PARA REGISTRAR SALIDA MASIVA/DISCRIMINADA ---
@@ -760,4 +757,3 @@ def procesar_salidas_lote(file: UploadFile = File(...), db: Session = Depends(ge
         "errores": errores,
         "advertencias": advertencias
     }
-
