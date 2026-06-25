@@ -602,6 +602,35 @@ def resumen_salidas(
         "detalle": detalle,
     }
 
+@app.get("/salidas/clientes")
+def clientes_con_salidas(
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+    db: Session = Depends(get_db),
+):
+    if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+        raise HTTPException(status_code=400, detail="La fecha desde no puede ser mayor que la fecha hasta.")
+
+    piezas = db.query(models.Pieza).filter(
+        (models.Pieza.fecha_salida_pierna != None) | (models.Pieza.fecha_salida_espalda != None)
+    ).all()
+
+    clientes = set()
+    for pieza in piezas:
+        if pieza.fecha_salida_pierna is not None:
+            fecha = pieza.fecha_salida_pierna.date()
+            dentro_rango = (not fecha_desde or fecha >= fecha_desde) and (not fecha_hasta or fecha <= fecha_hasta)
+            if dentro_rango and pieza.destino_pierna and pieza.destino_pierna.strip():
+                clientes.add(pieza.destino_pierna.strip())
+
+        if pieza.fecha_salida_espalda is not None:
+            fecha = pieza.fecha_salida_espalda.date()
+            dentro_rango = (not fecha_desde or fecha >= fecha_desde) and (not fecha_hasta or fecha <= fecha_hasta)
+            if dentro_rango and pieza.destino_espalda and pieza.destino_espalda.strip():
+                clientes.add(pieza.destino_espalda.strip())
+
+    return {"clientes": sorted(clientes, key=lambda x: x.lower())}
+
 @app.post("/piezas/salidas-lote/")
 def procesar_salidas_lote(file: UploadFile = File(...), db: Session = Depends(get_db)):
     # Verificamos que sea un archivo valido

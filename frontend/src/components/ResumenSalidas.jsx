@@ -7,6 +7,7 @@ const ResumenSalidas = () => {
   const [fechaDesde, setFechaDesde] = useState(hoyISO);
   const [fechaHasta, setFechaHasta] = useState(hoyISO);
   const [cliente, setCliente] = useState('');
+  const [clientesConSalida, setClientesConSalida] = useState([]);
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -29,10 +30,29 @@ const ResumenSalidas = () => {
     }
   };
 
+  const cargarClientesConSalida = async () => {
+    try {
+      const params = {};
+      if (fechaDesde) params.fecha_desde = fechaDesde;
+      if (fechaHasta) params.fecha_hasta = fechaHasta;
+
+      const res = await api.get('/salidas/clientes', { params });
+      setClientesConSalida(res.data?.clientes || []);
+    } catch (err) {
+      setClientesConSalida([]);
+    }
+  };
+
   useEffect(() => {
     cargarResumen();
+    cargarClientesConSalida();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    cargarClientesConSalida();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaDesde, fechaHasta]);
 
   return (
     <div className="page-container page-container-full">
@@ -50,12 +70,17 @@ const ResumenSalidas = () => {
           </div>
           <div style={{ minWidth: '260px', flex: 1 }}>
             <label>Cliente (opcional)</label>
-            <input
-              type="text"
+            <select
               value={cliente}
               onChange={(e) => setCliente(e.target.value)}
-              placeholder="Filtrar por cliente..."
-            />
+            >
+              <option value="">Todos los clientes con salidas</option>
+              {clientesConSalida.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
           <button onClick={cargarResumen} className="btn-lg btn-primary">
             Filtrar
