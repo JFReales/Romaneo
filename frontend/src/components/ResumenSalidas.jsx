@@ -8,9 +8,16 @@ const ResumenSalidas = () => {
   const [fechaHasta, setFechaHasta] = useState(hoyISO);
   const [cliente, setCliente] = useState('');
   const [clientesConSalida, setClientesConSalida] = useState([]);
+  const [mostrarClientes, setMostrarClientes] = useState(false);
+  const [verTodosClientes, setVerTodosClientes] = useState(false);
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+
+  const clientesFiltrados = (verTodosClientes
+    ? clientesConSalida
+    : clientesConSalida.filter((c) => c.toLowerCase().includes(cliente.trim().toLowerCase()))
+  ).slice(0, 100);
 
   const cargarResumen = async () => {
     setCargando(true);
@@ -70,18 +77,63 @@ const ResumenSalidas = () => {
           </div>
           <div style={{ minWidth: '260px', flex: 1 }}>
             <label>Cliente (opcional)</label>
-            <input
-              type="text"
-              value={cliente}
-              onChange={(e) => setCliente(e.target.value)}
-              placeholder="Escribí o elegí un cliente..."
-              list="clientes-salidas-list"
-            />
-            <datalist id="clientes-salidas-list">
-              {clientesConSalida.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={cliente}
+                  onChange={(e) => {
+                    setCliente(e.target.value);
+                    setVerTodosClientes(false);
+                    setMostrarClientes(true);
+                  }}
+                  onFocus={() => setMostrarClientes(true)}
+                  onBlur={() => setTimeout(() => setMostrarClientes(false), 120)}
+                  placeholder="Escribi o elegi un cliente..."
+                />
+                <button
+                  type="button"
+                  className="btn-sm btn-secondary"
+                  style={{ minWidth: '38px', height: '38px', padding: '0 10px' }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setVerTodosClientes(true);
+                    setMostrarClientes((prev) => !prev || true);
+                  }}
+                  title="Ver todos los clientes"
+                >
+                  ▼
+                </button>
+              </div>
+
+              {mostrarClientes && (
+                <div
+                  className="list-popover list-popover-absolute"
+                  style={{ width: '100%', maxHeight: '260px', marginTop: '4px', zIndex: 20 }}
+                >
+                  {clientesFiltrados.length === 0 ? (
+                    <div className="list-option" style={{ color: '#64748b' }}>
+                      No hay clientes para mostrar.
+                    </div>
+                  ) : (
+                    clientesFiltrados.map((c) => (
+                      <div
+                        key={c}
+                        className="list-option"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setCliente(c);
+                          setMostrarClientes(false);
+                          setVerTodosClientes(false);
+                        }}
+                      >
+                        {c}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <button onClick={cargarResumen} className="btn-lg btn-primary">
             Filtrar
