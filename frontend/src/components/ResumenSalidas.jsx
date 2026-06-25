@@ -70,17 +70,18 @@ const ResumenSalidas = () => {
           </div>
           <div style={{ minWidth: '260px', flex: 1 }}>
             <label>Cliente (opcional)</label>
-            <select
+            <input
+              type="text"
               value={cliente}
               onChange={(e) => setCliente(e.target.value)}
-            >
-              <option value="">Todos los clientes con salidas</option>
+              placeholder="Escribí o elegí un cliente..."
+              list="clientes-salidas-list"
+            />
+            <datalist id="clientes-salidas-list">
               {clientesConSalida.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+                <option key={c} value={c} />
               ))}
-            </select>
+            </datalist>
           </div>
           <button onClick={cargarResumen} className="btn-lg btn-primary">
             Filtrar
