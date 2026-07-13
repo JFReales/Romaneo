@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "builds": [
     {
@@ -19,8 +20,12 @@
       "dest": "main.py"
     },
     {
-      "src": "/(.*)",
+      "src": "/(.*\\..*)",
       "dest": "frontend/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/index.html"
     }
   ]
 }
