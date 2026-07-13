@@ -83,6 +83,10 @@ const Combobox = ({ label, value, onChange, options, placeholder }) => {
 const SalidaPiezas = () => {
   const [clientes, setClientes] = useState([]);
   const [firmas, setFirmas] = useState([]);
+  const [tropas, setTropas] = useState([]);
+  const [tropaSeleccionadaId, setTropaSeleccionadaId] = useState('');
+  const [piezasTropa, setPiezasTropa] = useState([]);
+  const [cargandoPiezas, setCargandoPiezas] = useState(false);
   const [numeroBusqueda, setNumeroBusqueda] = useState('');
   const [resultados, setResultados] = useState([]);
   const [pieza, setPieza] = useState(null);
@@ -103,22 +107,29 @@ const SalidaPiezas = () => {
   const [archivoCSV, setArchivoCSV] = useState(null);
   const [mensajeLote, setMensajeLote] = useState(null);
   const inputPiezaRef = useRef(null);
+  const cargaTropaRef = useRef(0);
 
   const nombresClientes = useMemo(() => clientes.map((item) => item.nombre), [clientes]);
   const nombresFirmas = useMemo(() => firmas.map((item) => item.nombre), [firmas]);
+  const tropaSeleccionada = useMemo(
+    () => tropas.find((item) => String(item.id) === tropaSeleccionadaId),
+    [tropas, tropaSeleccionadaId],
+  );
   const esPrestamo = pieza && razonSocial.trim()
     && pieza.firma.trim().toLowerCase() !== razonSocial.trim().toLowerCase();
 
   const cargarCatalogos = async () => {
     try {
-      const [resClientes, resFirmas] = await Promise.all([
+      const [resClientes, resFirmas, resTropas] = await Promise.all([
         api.get('/clientes/'),
         api.get('/firmas/'),
+        api.get('/tropas/'),
       ]);
       setClientes(resClientes.data);
       setFirmas(resFirmas.data);
+      setTropas(resTropas.data);
     } catch {
-      setMensaje({ texto: 'No se pudieron cargar clientes o razones sociales.', tipo: 'error' });
+      setMensaje({ texto: 'No se pudieron cargar tropas, clientes o razones sociales.', tipo: 'error' });
     }
   };
 
@@ -144,37 +155,80 @@ const SalidaPiezas = () => {
     }
   };
 
-  const buscarPiezas = async (valor) => {
+  const seleccionarTropa = async (tropaId) => {
+    const solicitudId = ++cargaTropaRef.current;
+    setTropaSeleccionadaId(tropaId);
+    setPiezasTropa([]);
+    setNumeroBusqueda('');
+    setResultados([]);
+    setPieza(null);
+    setCliente('');
+    limpiarFormulario(null);
+    setMensaje({ texto: '', tipo: '' });
+
+    if (!tropaId) {
+      setCargandoPiezas(false);
+      return;
+    }
+
+    setCargandoPiezas(true);
+    try {
+      const res = await api.get(`/tropas/${tropaId}/piezas/`);
+      if (solicitudId !== cargaTropaRef.current) return;
+      setPiezasTropa(res.data);
+      if (res.data.length === 0) {
+        setMensaje({ texto: 'La tropa seleccionada todavía no tiene piezas cargadas.', tipo: 'error' });
+      } else {
+        setTimeout(() => inputPiezaRef.current?.focus(), 50);
+      }
+    } catch (error) {
+      if (solicitudId !== cargaTropaRef.current) return;
+      setMensaje({ texto: error.response?.data?.detail || 'No se pudieron cargar las piezas de la tropa.', tipo: 'error' });
+    } finally {
+      if (solicitudId === cargaTropaRef.current) setCargandoPiezas(false);
+    }
+  };
+
+  const buscarPiezas = (valor) => {
     setNumeroBusqueda(valor);
     setPieza(null);
-    setResultados([]);
     setMensaje({ texto: '', tipo: '' });
-    if (!valor.trim()) return;
+    if (!tropaSeleccionadaId || !valor.trim()) {
+      setResultados([]);
+      return;
+    }
+
+    const coincidencias = piezasTropa
+      .filter((item) => String(item.numero_pieza).includes(valor.trim()))
+      .slice(0, 100);
+    setResultados(coincidencias);
+  };
+
+  const seleccionarPieza = async (seleccionada) => {
+    if (!tropaSeleccionadaId) return;
     try {
-      const res = await api.get(`/piezas/buscar/${valor}?incluir_vendidas=true`);
-      setResultados(res.data);
-    } catch {
-      setMensaje({ texto: 'No se pudo buscar la pieza.', tipo: 'error' });
+      const res = await api.get(
+        `/tropas/${tropaSeleccionadaId}/piezas/${seleccionada.numero_pieza}/status`,
+      );
+      setPieza(res.data);
+      setNumeroBusqueda(String(res.data.numero_pieza));
+      setResultados([]);
+      setMensaje({ texto: '', tipo: '' });
+      setCliente('');
+      limpiarFormulario(res.data);
+    } catch (error) {
+      setMensaje({ texto: error.response?.data?.detail || 'No se pudo cargar la pieza seleccionada.', tipo: 'error' });
     }
   };
 
-  const seleccionarPieza = (seleccionada) => {
-    setPieza(seleccionada);
-    setNumeroBusqueda(String(seleccionada.numero_pieza));
-    setResultados([]);
-    setMensaje({ texto: '', tipo: '' });
-    setCliente('');
-    limpiarFormulario(seleccionada);
-  };
-
-  const recargarPieza = async (piezaId = pieza?.id, numero = pieza?.numero_pieza) => {
-    if (!piezaId || numero === undefined) return;
-    const res = await api.get(`/piezas/buscar/${numero}?incluir_vendidas=true`);
-    const actualizada = res.data.find((item) => item.id === piezaId);
-    if (actualizada) {
-      setPieza(actualizada);
-      setPesoCamara(actualizada.peso_salida_camara_kg || '');
-    }
+  const recargarPieza = async (
+    tropaId = pieza?.tropa_id,
+    numero = pieza?.numero_pieza,
+  ) => {
+    if (!tropaId || numero === undefined) return;
+    const res = await api.get(`/tropas/${tropaId}/piezas/${numero}/status`);
+    setPieza(res.data);
+    setPesoCamara(res.data.peso_salida_camara_kg || '');
   };
 
   const elegirTipo = (valor) => {
@@ -296,32 +350,77 @@ const SalidaPiezas = () => {
           <span className="status-pill">6 tipos de ítem</span>
         </div>
 
-        <div className="field-block" style={{ position: 'relative' }}>
-          <label htmlFor="buscar-pieza">Buscar número de pieza</label>
-          <input
-            id="buscar-pieza"
-            ref={inputPiezaRef}
-            type="number"
-            value={numeroBusqueda}
-            onChange={(e) => buscarPiezas(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && resultados.length === 1) seleccionarPieza(resultados[0]);
-            }}
-            placeholder="Ej: 125"
-            className="input-hero"
-          />
-          {resultados.length > 0 && (
-            <div className="search-results">
-              {resultados.map((item) => (
-                <button type="button" key={item.id} onClick={() => seleccionarPieza(item)}>
-                  <span>
-                    <strong>Pieza {item.numero_pieza}</strong> · Tropa {item.numero_tropa} · {item.matadero}
-                  </span>
-                  <span>{item.es_toro ? 'Toro' : 'Novillo'} · {item.cerrada ? 'Cerrada' : `${item.saldo_kg} kg saldo`}</span>
-                </button>
+        <div className="piece-search-grid">
+          <div className="field-block">
+            <label htmlFor="seleccionar-tropa">1. Seleccionar tropa</label>
+            <select
+              id="seleccionar-tropa"
+              value={tropaSeleccionadaId}
+              onChange={(e) => seleccionarTropa(e.target.value)}
+              className="input-hero locator-select"
+            >
+              <option value="">Elegí una tropa</option>
+              {tropas.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.numero_tropa} · {item.matadero} · {item.firma}
+                </option>
               ))}
-            </div>
-          )}
+            </select>
+            {tropaSeleccionada && (
+              <span className="locator-context">
+                {cargandoPiezas ? 'Cargando piezas...' : `${piezasTropa.length} piezas`} · {tropaSeleccionada.matadero}
+              </span>
+            )}
+          </div>
+
+          <div className="field-block" style={{ position: 'relative' }}>
+            <label htmlFor="buscar-pieza">2. Buscar número de pieza</label>
+            <input
+              id="buscar-pieza"
+              ref={inputPiezaRef}
+              type="number"
+              value={numeroBusqueda}
+              disabled={!tropaSeleccionadaId || cargandoPiezas || piezasTropa.length === 0}
+              onChange={(e) => buscarPiezas(e.target.value)}
+              onFocus={() => {
+                if (!numeroBusqueda && tropaSeleccionadaId) setResultados(piezasTropa.slice(0, 100));
+              }}
+              onBlur={() => setTimeout(() => setResultados([]), 120)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                const exacta = piezasTropa.find(
+                  (item) => String(item.numero_pieza) === numeroBusqueda.trim(),
+                );
+                if (exacta) seleccionarPieza(exacta);
+                else if (resultados.length === 1) seleccionarPieza(resultados[0]);
+                else setMensaje({ texto: 'Elegí una pieza de la lista.', tipo: 'error' });
+              }}
+              placeholder={cargandoPiezas ? 'Cargando piezas...' : 'Ej: 125'}
+              className="input-hero"
+            />
+            {resultados.length > 0 && (
+              <div className="search-results">
+                {resultados.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      seleccionarPieza(item);
+                    }}
+                  >
+                    <span><strong>Pieza {item.numero_pieza}</strong></span>
+                    <span>
+                      {item.es_toro ? 'Toro' : 'Novillo'} · {item.peso_entrada_kg} kg · {item.cerrada ? 'Cerrada' : 'Disponible'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {numeroBusqueda && resultados.length === 0 && !pieza && (
+              <span className="locator-empty">No existe esa pieza dentro de la tropa seleccionada.</span>
+            )}
+          </div>
         </div>
 
         {pieza && (

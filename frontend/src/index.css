@@ -528,6 +528,44 @@ td {
   text-align: center;
 }
 
+.piece-search-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.15fr) minmax(240px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+}
+
+.piece-search-grid .field-block {
+  margin-bottom: 0;
+}
+
+.locator-select {
+  padding-left: 16px;
+  text-align: left;
+  font-size: 17px;
+}
+
+.locator-context,
+.locator-empty {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.locator-context {
+  color: #0f766e;
+}
+
+.locator-empty {
+  color: #b91c1c;
+}
+
 .search-results {
   position: absolute;
   left: 0;
@@ -537,7 +575,9 @@ td {
   background: #0f172a;
   border-radius: 10px;
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.3);
-  overflow: hidden;
+  max-height: 320px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .search-results button {
@@ -888,7 +928,8 @@ td {
   }
 
   .form-grid,
-  .filter-grid {
+  .filter-grid,
+  .piece-search-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -927,6 +968,7 @@ td {
   .type-grid,
   .form-grid,
   .filter-grid,
+  .piece-search-grid,
   .summary-cards,
   .inventory-totals {
     grid-template-columns: 1fr;
