@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
 
+void React;
+
 const CargarPiezas = ({ onCargaExitosa }) => {
     // --- ESTADOS DE TROPA ---
     const [tropas, setTropas] = useState([]);
@@ -17,6 +19,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
     // --- ESTADOS DEL FORMULARIO ---
     const [numeroPieza, setNumeroPieza] = useState('');
     const [pesoEntrada, setPesoEntrada] = useState('');
+    const [esToro, setEsToro] = useState(false);
     const [idEditando, setIdEditando] = useState(null); 
     const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
     
@@ -62,6 +65,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
 
     useEffect(() => {
         localStorage.setItem('carga_tropaSeleccionada', tropaSeleccionada);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         cargarPiezasDeTropa(tropaSeleccionada);
         cancelarEdicion(); 
         
@@ -121,16 +125,18 @@ const CargarPiezas = ({ onCargaExitosa }) => {
         setIdEditando(pieza.id);
         setNumeroPieza(pieza.numero_pieza);
         setPesoEntrada(pieza.peso_entrada_kg);
+        setEsToro(Boolean(pieza.es_toro));
         setMensaje({ texto: `Corrigiendo pieza NÂº ${pieza.numero_pieza}.`, tipo: 'success' });
         inputNumeroRef.current?.focus();
     };
 
-    const cancelarEdicion = () => {
+    function cancelarEdicion() {
         setIdEditando(null);
         setNumeroPieza('');
         setPesoEntrada('');
+        setEsToro(false);
         setMensaje({ texto: '', tipo: '' });
-    };
+    }
 
     // --- NUEVA LÃ“GICA: ELIMINAR PIEZA ---
     const eliminarPieza = async (pieza) => {
@@ -191,14 +197,15 @@ const CargarPiezas = ({ onCargaExitosa }) => {
             if (idEditando) {
                 await api.put(`/piezas/${idEditando}`, {
                     numero_pieza: numeroPiezaInt,
-                    peso_entrada_kg: pesoEntradaFloat
+                    peso_entrada_kg: pesoEntradaFloat,
+                    es_toro: esToro
                 });
 
                 setPiezasTropa((prev) =>
                     ordenarPorNumero(
                         prev.map((p) =>
                             p.id === idEditando
-                                ? { ...p, numero_pieza: numeroPiezaInt, peso_entrada_kg: pesoEntradaFloat }
+                                ? { ...p, numero_pieza: numeroPiezaInt, peso_entrada_kg: pesoEntradaFloat, es_toro: esToro }
                                 : p
                         )
                     )
@@ -208,11 +215,13 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                 setIdEditando(null);
                 setNumeroPieza('');
                 setPesoEntrada('');
+                setEsToro(false);
                 inputNumeroRef.current?.focus();
             } else {
                 const response = await api.post(`/tropas/${tropaSeleccionada}/piezas/`, {
                     numero_pieza: numeroPiezaInt,
-                    peso_entrada_kg: pesoEntradaFloat
+                    peso_entrada_kg: pesoEntradaFloat,
+                    es_toro: esToro
                 });
 
                 setPiezasTropa((prev) => ordenarPorNumero([...prev, response.data]));
@@ -222,6 +231,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                 const numSiguiente = numeroPiezaInt + 1;
                 setNumeroPieza(numSiguiente.toString());
                 setPesoEntrada('');
+                setEsToro(false);
                 setTimeout(() => inputPesoRef.current?.focus(), 50);
             }
 
@@ -398,6 +408,15 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                                 </div>
                             </div>
 
+                            <label className="checkbox-row" style={{ marginTop: '12px' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={esToro}
+                                    onChange={(e) => setEsToro(e.target.checked)}
+                                />
+                                <span>Esta media corresponde a toro</span>
+                            </label>
+
                             <div className="inline-row" style={{ marginTop: '15px' }}>
                                 <button
                                     onClick={handleCargarPieza}
@@ -448,6 +467,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                                     <tr>
                                         <th># Pieza</th>
                                         <th>Peso Entrada</th>
+                                        <th>Tipo</th>
                                         <th>AcciÃ³n</th>
                                     </tr>
                                 </thead>
@@ -456,6 +476,11 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                                         <tr key={p.id}>
                                             <td style={{ fontWeight: '700', fontSize: '18px' }}>{p.numero_pieza}</td>
                                             <td style={{ color: '#475569' }}>{p.peso_entrada_kg} kg</td>
+                                            <td>
+                                                <span className={`status-pill ${p.es_toro ? 'status-pill-toro' : ''}`}>
+                                                    {p.es_toro ? 'Toro' : 'Novillo'}
+                                                </span>
+                                            </td>
                                             
                                             {/* --- BOTONES DE ACCIÃ“N (EDITAR Y BORRAR) --- */}
                                             <td>

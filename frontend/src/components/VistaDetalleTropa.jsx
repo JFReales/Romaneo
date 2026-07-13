@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../api';
 
 const VistaDetalleTropa = () => {
@@ -106,6 +106,11 @@ const VistaDetalleTropa = () => {
                     <br />
                     <strong>{pieza.peso_salida_camara || '--'} kg</strong>
                   </div>
+                  <div>
+                    <small>SALDO</small>
+                    <br />
+                    <strong>{pieza.saldo_kg} kg</strong>
+                  </div>
                 </div>
 
                 <div style={{ padding: '12px' }}>
@@ -151,6 +156,23 @@ const VistaDetalleTropa = () => {
                       </div>
                     )}
                   </div>
+
+                  {pieza.salidas?.length > 0 && (
+                    <div style={{ marginTop: '12px', borderTop: '1px solid #cbd5e1', paddingTop: '10px' }}>
+                      <strong style={{ display: 'block', marginBottom: '7px' }}>Movimientos</strong>
+                      {pieza.salidas.map((salida) => (
+                        <div
+                          key={salida.id}
+                          style={{ padding: '8px', marginTop: '6px', borderRadius: '7px', background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                        >
+                          <strong>{salida.tipo === 'Vacio' ? 'Vacío' : salida.tipo}: {salida.peso_kg} kg</strong>
+                          <br />
+                          {salida.cliente} · {salida.razon_social_destino}
+                          {salida.es_prestamo ? ' · Préstamo' : ''}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </article>
             ))}

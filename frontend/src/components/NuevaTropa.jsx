@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../api';
 
 const NuevaTropa = () => {
   const [numeroTropa, setNumeroTropa] = useState('');
   const [matadero, setMatadero] = useState('');
   const [firma, setFirma] = useState('');
+  const [listaFirmas, setListaFirmas] = useState([]);
+  const [nuevaFirma, setNuevaFirma] = useState('');
   const [fechaIngreso, setFechaIngreso] = useState('');
 
   const [listaProveedores, setListaProveedores] = useState([]);
@@ -18,16 +20,41 @@ const NuevaTropa = () => {
 
   const cargarDatos = async () => {
     try {
-      const resP = await api.get('/proveedores/');
+      const [resP, resT, resF] = await Promise.all([
+        api.get('/proveedores/'),
+        api.get('/tropas/'),
+        api.get('/firmas/'),
+      ]);
       setListaProveedores(resP.data);
-      const resT = await api.get('/tropas/');
       setTropas(resT.data);
+      setListaFirmas(resF.data);
     } catch (error) {
       console.error('Error al cargar datos', error);
     }
   };
 
+  const crearFirmaOnTheFly = async () => {
+    const nombre = nuevaFirma.trim();
+    if (!nombre) {
+      setMensaje({ texto: 'Escribi el nombre de la firma consignataria.', tipo: 'error' });
+      return;
+    }
+    try {
+      const res = await api.post('/firmas/', { nombre, es_propia: false });
+      setListaFirmas((actuales) => {
+        if (actuales.some((item) => item.id === res.data.id)) return actuales;
+        return [...actuales, res.data].sort((a, b) => a.nombre.localeCompare(b.nombre));
+      });
+      setFirma(res.data.nombre);
+      setNuevaFirma('');
+      setMensaje({ texto: 'Firma consignataria creada y seleccionada.', tipo: 'success' });
+    } catch (error) {
+      setMensaje({ texto: error.response?.data?.detail || 'No se pudo crear la firma.', tipo: 'error' });
+    }
+  };
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDatos();
   }, []);
 
@@ -42,7 +69,7 @@ const NuevaTropa = () => {
       setProveedorSeleccionado(res.data);
       setBusquedaProveedor(res.data.nombre);
       setMensaje({ texto: 'Proveedor registrado.', tipo: 'success' });
-    } catch (error) {
+    } catch {
       setMensaje({ texto: 'Error al registrar proveedor.', tipo: 'error' });
     }
   };
@@ -153,11 +180,24 @@ const NuevaTropa = () => {
               required
             >
               <option value="">Selecciona una firma</option>
-              <option value="Erre de Mayoristas S.A.">Erre de Mayoristas S.A.</option>
-              <option value="Ganadera Roberto Graziotin S.A.">Ganadera Roberto Graziotin S.A.</option>
-              <option value="Hacienda de Raza S.A.">Hacienda de Raza S.A.</option>
-              <option value="Razas de altura S.A.">Razas de altura S.A.</option>
+              {listaFirmas.map((item) => (
+                <option key={item.id} value={item.nombre}>
+                  {item.nombre}{item.es_propia ? ' (propia)' : ''}
+                </option>
+              ))}
             </select>
+            <div className="inline-row" style={{ marginTop: '8px', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={nuevaFirma}
+                onChange={(e) => setNuevaFirma(e.target.value)}
+                placeholder="Nueva firma o razon social que presto la carne"
+                style={{ flex: 1, minWidth: '260px' }}
+              />
+              <button type="button" className="btn-md btn-secondary" onClick={crearFirmaOnTheFly}>
+                Crear firma
+              </button>
+            </div>
           </div>
 
           <div className="field-block section-soft" style={{ padding: '12px' }}>

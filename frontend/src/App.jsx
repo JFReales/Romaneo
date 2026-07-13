@@ -1,10 +1,10 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import NuevaTropa from './components/NuevaTropa';
 import CargarPiezas from './components/CargarPiezas';
 import SalidaPiezas from './components/SalidaPiezas';
 import VistaDetalleTropa from './components/VistaDetalleTropa';
 import ResumenSalidas from './components/ResumenSalidas';
+import DashboardPrincipal from './components/DashboardPrincipal';
 
 const MenuLink = ({ to, children }) => {
   const location = useLocation();
@@ -24,7 +24,8 @@ function App() {
         <aside className="app-sidebar">
           <h2 className="app-title">Romaneo App</h2>
 
-          <MenuLink to="/">Ingresar Tropa</MenuLink>
+          <MenuLink to="/">Inicio y Existencia</MenuLink>
+          <MenuLink to="/tropas">Ingresar Tropa</MenuLink>
           <MenuLink to="/carga-rafaga">Carga Rapida</MenuLink>
           <MenuLink to="/salidas">Salidas y Stock</MenuLink>
           <MenuLink to="/resumen-salidas">Resumen de Salidas</MenuLink>
@@ -33,7 +34,8 @@ function App() {
 
         <main className="app-main">
           <Routes>
-            <Route path="/" element={<NuevaTropa />} />
+            <Route path="/" element={<DashboardPrincipal />} />
+            <Route path="/tropas" element={<NuevaTropa />} />
             <Route path="/carga-rafaga" element={<CargarPiezas />} />
             <Route path="/salidas" element={<SalidaPiezas />} />
             <Route path="/resumen-salidas" element={<ResumenSalidas />} />
