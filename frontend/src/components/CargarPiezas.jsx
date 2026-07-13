@@ -116,7 +116,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                 setMensaje({ texto: '', tipo: '' });
                 setTimeout(() => inputNumeroRef.current?.focus(), 100);
             } else {
-                setMensaje({ texto: 'No se encontrÃ³ coincidencia exacta para seleccionar.', tipo: 'error' });
+                setMensaje({ texto: 'No se encontró coincidencia exacta para seleccionar.', tipo: 'error' });
             }
         }
     };
@@ -126,7 +126,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
         setNumeroPieza(pieza.numero_pieza);
         setPesoEntrada(pieza.peso_entrada_kg);
         setEsToro(Boolean(pieza.es_toro));
-        setMensaje({ texto: `Corrigiendo pieza NÂº ${pieza.numero_pieza}.`, tipo: 'success' });
+        setMensaje({ texto: `Corrigiendo pieza Nro. ${pieza.numero_pieza}.`, tipo: 'success' });
         inputNumeroRef.current?.focus();
     };
 
@@ -138,19 +138,19 @@ const CargarPiezas = ({ onCargaExitosa }) => {
         setMensaje({ texto: '', tipo: '' });
     }
 
-    // --- NUEVA LÃ“GICA: ELIMINAR PIEZA ---
+    // --- NUEVA LÓGICA: ELIMINAR PIEZA ---
     const eliminarPieza = async (pieza) => {
-        // Pedimos confirmaciÃ³n nativa del navegador para no borrar por accidente
-        if (!window.confirm(`Â¿EstÃ¡s seguro de que querÃ©s ELIMINAR la pieza NÂº ${pieza.numero_pieza} (Entrada: ${pieza.peso_entrada_kg} kg)?`)) {
+        // Pedimos confirmación nativa del navegador para no borrar por accidente
+        if (!window.confirm(`¿Estás seguro de que querés ELIMINAR la pieza Nro. ${pieza.numero_pieza} (Entrada: ${pieza.peso_entrada_kg} kg)?`)) {
             return;
         }
 
         try {
             await api.delete(`/piezas/${pieza.id}`);
-            setMensaje({ texto: `ðŸ—‘ï¸ Pieza NÂº ${pieza.numero_pieza} eliminada correctamente.`, tipo: 'success' });
+            setMensaje({ texto: `Pieza Nro. ${pieza.numero_pieza} eliminada correctamente.`, tipo: 'success' });
             setPiezasTropa((prev) => prev.filter((p) => p.id !== pieza.id));
             
-            // Si estÃ¡bamos editando esa misma pieza, cancelamos la ediciÃ³n
+            // Si estábamos editando esa misma pieza, cancelamos la edición
             if (idEditando === pieza.id) {
                 cancelarEdicion();
             }
@@ -162,11 +162,11 @@ const CargarPiezas = ({ onCargaExitosa }) => {
 
     const eliminarTodasLasPiezas = async () => {
         if (!tropaSeleccionada) {
-            setMensaje({ texto: 'Primero seleccionÃ¡ una tropa.', tipo: 'error' });
+            setMensaje({ texto: 'Primero seleccioná una tropa.', tipo: 'error' });
             return;
         }
 
-        if (!window.confirm('Â¿Seguro que querÃ©s eliminar TODAS las piezas de esta tropa? Esta acciÃ³n no se puede deshacer.')) {
+        if (!window.confirm('¿Seguro que querés eliminar TODAS las piezas de esta tropa? Esta acción no se puede deshacer.')) {
             return;
         }
 
@@ -265,23 +265,23 @@ const CargarPiezas = ({ onCargaExitosa }) => {
     if (cantidadTotalPiezas && kilosTotales && piezasCargadasActuales >= parseInt(cantidadTotalPiezas)) {
         const diferencia = Math.abs(parseFloat(kilosTotales) - kilosCargadosActuales);
         if (diferencia > 0.5) { 
-            advertenciaControl = `Â¡ATENCIÃ“N! Se cargaron las ${piezasCargadasActuales} piezas, pero los kilos sumados (${kilosCargadosActuales.toFixed(2)} kg) NO coinciden con los declarados (${kilosTotales} kg). Diferencia: ${diferencia.toFixed(2)} kg.`;
+            advertenciaControl = `¡ATENCIÓN! Se cargaron las ${piezasCargadasActuales} piezas, pero los kilos sumados (${kilosCargadosActuales.toFixed(2)} kg) NO coinciden con los declarados (${kilosTotales} kg). Diferencia: ${diferencia.toFixed(2)} kg.`;
         } else {
-            advertenciaControl = `âœ… Â¡Carga Perfecta! Las ${piezasCargadasActuales} piezas coinciden exacto con los ${kilosTotales} kg.`;
+            advertenciaControl = `Carga correcta: las ${piezasCargadasActuales} piezas coinciden con los ${kilosTotales} kg.`;
         }
     }
 
     return (
         <div className="page-container">
             <section className="card card-elevated content-block">
-                <h2>Carga RÃ¡pida de Piezas</h2>
+                <h2>Carga Rápida de Piezas</h2>
 
                 <div className="field-block" style={{ position: 'relative' }}>
-                    <label htmlFor="tropa-carga">1. Buscar Tropa (Por nÃºmero)</label>
+                    <label htmlFor="tropa-carga">1. Buscar Tropa (por número)</label>
                     <input
                         id="tropa-carga"
                         type="text"
-                        placeholder="TipeÃ¡ el nÃºmero de tropa y dale Enter..."
+                        placeholder="Tipeá el número de tropa y presioná Enter..."
                         value={busquedaTropa}
                         onChange={(e) => {
                             setBusquedaTropa(e.target.value);
@@ -307,18 +307,18 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                                         }}
                                         style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #334155', color: '#f8fafc' }}
                                     >
-                                        ðŸ” {t.numero_tropa} - {t.matadero}
+                                        {t.numero_tropa} - {t.matadero}
                                     </div>
                                 ))
                             ) : (
-                                <div style={{ padding: '10px', color: '#ef4444' }}>No se encontrÃ³ ninguna tropa.</div>
+                                <div style={{ padding: '10px', color: '#ef4444' }}>No se encontró ninguna tropa.</div>
                             )}
                         </div>
                     )}
 
                     {busquedaCoincide && (
                         <div style={{ color: '#22c55e', fontWeight: 'bold', marginTop: '8px', fontSize: '14px' }}>
-                            âœ… Tropa Seleccionada: {tropaActual.numero_tropa} ({tropaActual.matadero})
+                            Tropa seleccionada: {tropaActual.numero_tropa} ({tropaActual.matadero})
                         </div>
                     )}
                 </div>
@@ -360,7 +360,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                         </div>
 
                         {advertenciaControl && (
-                            <div className={`alert ${advertenciaControl.includes('ATENCIÃ“N') ? 'alert-error' : 'alert-success'}`} style={{ marginBottom: '15px' }}>
+                            <div className={`alert ${advertenciaControl.includes('ATENCIÓN') ? 'alert-error' : 'alert-success'}`} style={{ marginBottom: '15px' }}>
                                 {advertenciaControl}
                             </div>
                         )}
@@ -374,12 +374,12 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                             }}
                         >
                             <strong style={{ display: 'block', marginBottom: '10px', color: idEditando ? '#92400e' : '#0f172a' }}>
-                                {idEditando ? 'Modo EdiciÃ³n Activo' : '2. Datos de la Media (teclado rÃ¡pido)'}
+                                {idEditando ? 'Modo Edición Activo' : '2. Datos de la Media (teclado rápido)'}
                             </strong>
 
                             <div className="inline-row" style={{ gap: '15px' }}>
                                 <div style={{ flex: 1, minWidth: '170px' }}>
-                                    <label htmlFor="numero-pieza" style={{ fontSize: '13px' }}>NÃºmero de pieza</label>
+                                    <label htmlFor="numero-pieza" style={{ fontSize: '13px' }}>Número de pieza</label>
                                     <input
                                         id="numero-pieza"
                                         type="number"
@@ -459,7 +459,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                     </div>
 
                     {piezasTropa.length === 0 ? (
-                        <p style={{ color: '#64748b', fontStyle: 'italic' }}>AÃºn no hay piezas cargadas en esta tropa.</p>
+                        <p style={{ color: '#64748b', fontStyle: 'italic' }}>Aún no hay piezas cargadas en esta tropa.</p>
                     ) : (
                         <div style={{ maxHeight: '320px', overflowY: 'auto', marginTop: '8px' }}>
                             <table className="table-modern" style={{ textAlign: 'center', width: '100%' }}>
@@ -468,7 +468,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                                         <th># Pieza</th>
                                         <th>Peso Entrada</th>
                                         <th>Tipo</th>
-                                        <th>AcciÃ³n</th>
+                                        <th>Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -482,7 +482,7 @@ const CargarPiezas = ({ onCargaExitosa }) => {
                                                 </span>
                                             </td>
                                             
-                                            {/* --- BOTONES DE ACCIÃ“N (EDITAR Y BORRAR) --- */}
+                                            {/* --- BOTONES DE ACCIÓN (EDITAR Y BORRAR) --- */}
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                     <button onClick={() => activarEdicion(p)} className="btn-sm btn-primary">
