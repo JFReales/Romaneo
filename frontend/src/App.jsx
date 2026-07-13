@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import NuevaTropa from './components/NuevaTropa';
 import CargarPiezas from './components/CargarPiezas';
 import SalidaPiezas from './components/SalidaPiezas';
@@ -40,6 +40,7 @@ function App() {
             <Route path="/salidas" element={<SalidaPiezas />} />
             <Route path="/resumen-salidas" element={<ResumenSalidas />} />
             <Route path="/monitor" element={<VistaDetalleTropa />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>
