@@ -5,6 +5,7 @@ import SalidaPiezas from './components/SalidaPiezas';
 import VistaDetalleTropa from './components/VistaDetalleTropa';
 import ResumenSalidas from './components/ResumenSalidas';
 import DashboardPrincipal from './components/DashboardPrincipal';
+import GestionClientes from './components/GestionClientes';
 
 const MenuLink = ({ to, children }) => {
   const location = useLocation();
@@ -26,6 +27,7 @@ function App() {
 
           <MenuLink to="/">Inicio y Existencia</MenuLink>
           <MenuLink to="/tropas">Ingresar Tropa</MenuLink>
+          <MenuLink to="/clientes">Clientes y Razones</MenuLink>
           <MenuLink to="/carga-rafaga">Carga Rapida</MenuLink>
           <MenuLink to="/salidas">Salidas y Stock</MenuLink>
           <MenuLink to="/resumen-salidas">Resumen de Salidas</MenuLink>
@@ -36,6 +38,7 @@ function App() {
           <Routes>
             <Route path="/" element={<DashboardPrincipal />} />
             <Route path="/tropas" element={<NuevaTropa />} />
+            <Route path="/clientes" element={<GestionClientes />} />
             <Route path="/carga-rafaga" element={<CargarPiezas />} />
             <Route path="/salidas" element={<SalidaPiezas />} />
             <Route path="/resumen-salidas" element={<ResumenSalidas />} />

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api';
+import Combobox from './Combobox';
 
 
 const TIPOS = [
@@ -13,71 +14,6 @@ const TIPOS = [
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const fechaInput = (iso) => (iso ? iso.slice(0, 10) : hoy());
-
-
-const Combobox = ({ label, value, onChange, options, placeholder }) => {
-  const [abierto, setAbierto] = useState(false);
-  const [verTodos, setVerTodos] = useState(false);
-
-  const filtrados = useMemo(() => {
-    if (verTodos || !value.trim()) return options.slice(0, 100);
-    const texto = value.toLowerCase();
-    return options.filter((item) => item.toLowerCase().includes(texto)).slice(0, 100);
-  }, [options, value, verTodos]);
-
-  return (
-    <div className="field-block" style={{ position: 'relative', marginBottom: 0 }}>
-      <label>{label}</label>
-      <div className="combo-control">
-        <input
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setVerTodos(false);
-            setAbierto(true);
-          }}
-          onFocus={() => setAbierto(true)}
-          onBlur={() => setTimeout(() => setAbierto(false), 120)}
-          placeholder={placeholder}
-        />
-        <button
-          type="button"
-          className="combo-arrow"
-          title="Ver todos"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setVerTodos(true);
-            setAbierto(true);
-          }}
-        >
-          ▼
-        </button>
-      </div>
-
-      {abierto && (
-        <div className="combo-menu">
-          {filtrados.length === 0 ? (
-            <div className="combo-empty">Podés usar este nombre nuevo.</div>
-          ) : filtrados.map((item) => (
-            <button
-              type="button"
-              key={item}
-              className="combo-option"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange(item);
-                setAbierto(false);
-                setVerTodos(false);
-              }}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 
 const SalidaPiezas = () => {
@@ -234,13 +170,28 @@ const SalidaPiezas = () => {
   const elegirTipo = (valor) => {
     setTipo(valor);
     if (valor === 'Media') {
-      const peso = pieza?.peso_salida_camara_kg || pesoCamara || pieza?.peso_entrada_kg || '';
+      const peso = pieza?.peso_salida_camara_kg || pesoCamara || '';
       setPesoSalida(peso);
       setCerrarPieza(true);
     } else {
       setCerrarPieza(false);
       setPesoSalida('');
     }
+  };
+
+  const cambiarCliente = (valor) => {
+    setCliente(valor);
+    const clienteCatalogado = clientes.find(
+      (item) => item.nombre.trim().toLocaleLowerCase('es') === valor.trim().toLocaleLowerCase('es'),
+    );
+    if (clienteCatalogado?.razon_social?.nombre) {
+      setRazonSocial(clienteCatalogado.razon_social.nombre);
+    }
+  };
+
+  const cambiarPesoCamara = (valor) => {
+    setPesoCamara(valor);
+    if (tipo === 'Media' && !salidaEditando) setPesoSalida(valor);
   };
 
   const editarSalida = (salida) => {
@@ -270,10 +221,13 @@ const SalidaPiezas = () => {
     setMensaje({ texto: '', tipo: '' });
     try {
       let res;
+      const pesoReal = salidaEditando || tipo !== 'Media'
+        ? Number(pesoSalida)
+        : Number(pieza.peso_salida_camara_kg || pesoCamara);
       if (salidaEditando) {
         res = await api.put(`/salidas/${salidaEditando}`, {
           tipo,
-          peso_kg: Number(pesoSalida),
+          peso_kg: pesoReal,
           cliente: cliente.trim(),
           razon_social_destino: razonSocial.trim(),
           fecha_salida: `${fechaSalida}T12:00:00`,
@@ -284,7 +238,7 @@ const SalidaPiezas = () => {
         res = await api.post('/salidas/', {
           pieza_id: pieza.id,
           tipo,
-          peso_kg: Number(pesoSalida),
+          peso_kg: pesoReal,
           cliente: cliente.trim(),
           razon_social_destino: razonSocial.trim(),
           fecha_salida: `${fechaSalida}T12:00:00`,
@@ -468,26 +422,34 @@ const SalidaPiezas = () => {
                 <div className="form-grid">
                   {!pieza.peso_salida_camara_kg && !salidaEditando && (
                     <div className="field-block">
-                      <label>Peso de cámara de la media</label>
-                      <input type="number" step="0.01" value={pesoCamara} onChange={(e) => setPesoCamara(e.target.value)} />
+                      <label>Peso real de cámara de la media</label>
+                      <input type="number" step="0.01" value={pesoCamara} onChange={(e) => cambiarPesoCamara(e.target.value)} />
                     </div>
                   )}
                   <div className="field-block">
-                    <label>Peso de este ítem</label>
-                    <input type="number" step="0.01" value={pesoSalida} onChange={(e) => setPesoSalida(e.target.value)} />
+                    <label>{tipo === 'Media' ? 'Peso de la media (igual al peso de cámara)' : 'Peso de este ítem'}</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pesoSalida}
+                      disabled={tipo === 'Media' && !salidaEditando}
+                      onChange={(e) => setPesoSalida(e.target.value)}
+                    />
                   </div>
                   <div className="field-block">
                     <label>Fecha de salida</label>
                     <input type="date" value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} />
                   </div>
                   <Combobox
+                    id="cliente-salida"
                     label="Cliente"
                     value={cliente}
-                    onChange={setCliente}
+                    onChange={cambiarCliente}
                     options={nombresClientes}
                     placeholder="Escribí o elegí un cliente"
                   />
                   <Combobox
+                    id="razon-social-salida"
                     label="Razón social destino"
                     value={razonSocial}
                     onChange={setRazonSocial}

@@ -469,6 +469,11 @@ td {
   color: #92400e;
 }
 
+.status-pill-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .combo-control {
   display: flex;
   align-items: stretch;
@@ -510,7 +515,8 @@ td {
 }
 
 .combo-option:hover,
-.combo-option:focus {
+.combo-option:focus,
+.combo-option.active {
   background: #e0f2fe;
   box-shadow: none;
 }
@@ -519,6 +525,47 @@ td {
   padding: 11px;
   color: #475569;
   font-size: 13px;
+}
+
+.monitor-search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: 820px;
+}
+
+.monitor-search-row .combo-field {
+  flex: 1;
+}
+
+.selection-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 13px;
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  background: #ccfbf1;
+  color: #115e59;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.field-help {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 12px;
+}
+
+.status-info {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #bae6fd;
+  border-radius: 9px;
+  background: #f0f9ff;
+  color: #075985;
+  font-weight: 700;
 }
 
 .input-hero {
@@ -688,6 +735,31 @@ td {
   align-items: end;
 }
 
+.client-create-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  margin-bottom: 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+}
+
+.client-create-grid .field-block {
+  margin-bottom: 0;
+}
+
+.client-table select {
+  min-width: 280px;
+}
+
+.client-table th,
+.client-table td {
+  vertical-align: middle;
+}
+
 .movement-list {
   margin-top: 20px;
 }
@@ -835,6 +907,65 @@ td {
   color: #92400e;
 }
 
+.loan-origin-list {
+  display: grid;
+  gap: 16px;
+}
+
+.loan-origin-block {
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 13px;
+  background: #ffffff;
+}
+
+.loan-origin-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 17px;
+  border-bottom: 1px solid #99f6e4;
+  background: linear-gradient(120deg, #f0fdfa, #f8fafc);
+}
+
+.loan-origin-heading span,
+.loan-origin-heading strong {
+  display: block;
+}
+
+.loan-origin-heading span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.loan-origin-heading strong {
+  color: #134e4a;
+  font-size: 20px;
+}
+
+.loan-origin-total {
+  text-align: right;
+}
+
+.loan-origin-total strong {
+  color: #0f766e;
+}
+
+.loan-origin-table {
+  border-radius: 0;
+}
+
+.loan-origin-table th:first-child,
+.loan-origin-table td:first-child {
+  min-width: 190px;
+}
+
+.loan-origin-table td:last-child {
+  min-width: 240px;
+}
+
 .dashboard-hero {
   display: flex;
   align-items: center;
@@ -929,7 +1060,8 @@ td {
 
   .form-grid,
   .filter-grid,
-  .piece-search-grid {
+  .piece-search-grid,
+  .client-create-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -964,11 +1096,22 @@ td {
     gap: 8px;
   }
 
+  .monitor-search-row,
+  .loan-origin-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .loan-origin-total {
+    text-align: left;
+  }
+
   .piece-metrics,
   .type-grid,
   .form-grid,
   .filter-grid,
   .piece-search-grid,
+  .client-create-grid,
   .summary-cards,
   .inventory-totals {
     grid-template-columns: 1fr;

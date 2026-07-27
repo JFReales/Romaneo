@@ -28,6 +28,7 @@ from romaneo_service import (
     fecha_en_rango,
     nueva_fila_cliente,
     peso_base_pieza,
+    peso_real_salida,
     recalcular_estado_pieza,
     saldo_pieza,
     salida_dict,
@@ -307,10 +308,19 @@ def obtener_stock(db: Session = Depends(get_db)):
 @app.post("/clientes/", response_model=schemas.Cliente)
 def crear_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db)):
     nombre = cliente.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="Ingrese el nombre del cliente.")
+    if cliente.razon_social_id is not None and not db.get(models.FirmaConsignataria, cliente.razon_social_id):
+        raise HTTPException(status_code=404, detail="Razón social no encontrada.")
+
     existente = db.query(models.Cliente).filter(models.Cliente.nombre.ilike(nombre)).first()
     if existente:
+        if cliente.razon_social_id is not None:
+            existente.razon_social_id = cliente.razon_social_id
+            db.commit()
+            db.refresh(existente)
         return existente
-    nuevo = models.Cliente(nombre=nombre)
+    nuevo = models.Cliente(nombre=nombre, razon_social_id=cliente.razon_social_id)
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
@@ -319,7 +329,37 @@ def crear_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db))
 
 @app.get("/clientes/", response_model=list[schemas.Cliente])
 def listar_clientes(db: Session = Depends(get_db)):
-    return db.query(models.Cliente).order_by(models.Cliente.nombre.asc()).all()
+    return (
+        db.query(models.Cliente)
+        .options(joinedload(models.Cliente.razon_social))
+        .order_by(models.Cliente.nombre.asc())
+        .all()
+    )
+
+
+@app.put("/clientes/{cliente_id}", response_model=schemas.Cliente)
+def actualizar_cliente(cliente_id: int, datos: schemas.ClienteCreate, db: Session = Depends(get_db)):
+    cliente = db.get(models.Cliente, cliente_id)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+
+    nombre = datos.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="Ingrese el nombre del cliente.")
+    duplicado = db.query(models.Cliente).filter(
+        models.Cliente.nombre.ilike(nombre),
+        models.Cliente.id != cliente_id,
+    ).first()
+    if duplicado:
+        raise HTTPException(status_code=400, detail="Ya existe otro cliente con ese nombre.")
+    if datos.razon_social_id is not None and not db.get(models.FirmaConsignataria, datos.razon_social_id):
+        raise HTTPException(status_code=404, detail="Razón social no encontrada.")
+
+    cliente.nombre = nombre
+    cliente.razon_social_id = datos.razon_social_id
+    db.commit()
+    db.refresh(cliente)
+    return cliente
 
 
 @app.post("/proveedores")
@@ -404,16 +444,22 @@ def actualizar_salida(salida_id: int, datos: schemas.SalidaUpdate, db: Session =
     cambios = datos.model_dump(exclude_unset=True)
     if cambios.get("tipo") == "Media" and len(salida.pieza.salidas) > 1:
         raise HTTPException(status_code=400, detail="Una media completa no puede convivir con otras salidas parciales.")
-    if "cliente" in cambios:
-        asegurar_cliente(db, cambios["cliente"])
-        salida.cliente = cambios["cliente"].strip()
     if "razon_social_destino" in cambios:
         asegurar_firma(db, cambios["razon_social_destino"])
         salida.razon_social_destino = cambios["razon_social_destino"].strip()
+    if "cliente" in cambios:
+        firma_destino = asegurar_firma(
+            db,
+            cambios.get("razon_social_destino", salida.razon_social_destino),
+        )
+        asegurar_cliente(db, cambios["cliente"], firma_destino)
+        salida.cliente = cambios["cliente"].strip()
     if "tipo" in cambios:
         salida.tipo = cambios["tipo"]
     if "peso_kg" in cambios:
         salida.peso_kg = cambios["peso_kg"]
+        if salida.tipo == "Media":
+            salida.pieza.peso_salida_camara_kg = cambios["peso_kg"]
     if "fecha_salida" in cambios and cambios["fecha_salida"] is not None:
         salida.fecha_salida = cambios["fecha_salida"]
     if "cierra_pieza" in cambios:
@@ -557,9 +603,10 @@ def resumen_salidas(
         fila = por_cliente_map.setdefault(nombre_cliente, nueva_fila_cliente(nombre_cliente))
         clave = clave_resumen(salida.tipo, bool(salida.pieza.es_toro))
         fila["registros"] += 1
-        fila["kilos"] += float(salida.peso_kg)
+        kilos_reales = peso_real_salida(salida)
+        fila["kilos"] += kilos_reales
         fila[clave] += 1
-        fila[f"{clave}_kg"] += float(salida.peso_kg)
+        fila[f"{clave}_kg"] += kilos_reales
         detalle.append(salida_dict(salida))
 
     por_cliente = list(por_cliente_map.values())
@@ -580,7 +627,7 @@ def resumen_salidas(
         "resumen": {
             "registros": len(salidas),
             "clientes": len(por_cliente),
-            "kilos_totales": round(sum(float(salida.peso_kg) for salida in salidas), 2),
+            "kilos_totales": round(sum(peso_real_salida(salida) for salida in salidas), 2),
             "prestamos": sum(grupo["movimientos"] for grupo in prestamos),
             "kilos_prestados": round(sum(grupo["kilos"] for grupo in prestamos), 2),
         },

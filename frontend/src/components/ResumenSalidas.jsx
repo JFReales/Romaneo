@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../api';
+import Combobox from './Combobox';
 
 
 const hoyISO = new Date().toISOString().slice(0, 10);
@@ -9,17 +10,43 @@ const ResumenSalidas = () => {
   const [fechaHasta, setFechaHasta] = useState(hoyISO);
   const [cliente, setCliente] = useState('');
   const [clientes, setClientes] = useState([]);
-  const [mostrarClientes, setMostrarClientes] = useState(false);
-  const [verTodos, setVerTodos] = useState(false);
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
-  const clientesFiltrados = useMemo(() => {
-    if (verTodos || !cliente.trim()) return clientes.slice(0, 100);
-    const texto = cliente.toLowerCase();
-    return clientes.filter((nombre) => nombre.toLowerCase().includes(texto)).slice(0, 100);
-  }, [cliente, clientes, verTodos]);
+  const prestamosPorOrigen = useMemo(() => {
+    const grupos = new Map();
+    const prestamos = [...(datos?.prestamos || [])].sort((a, b) => (
+      a.razon_social_origen.localeCompare(b.razon_social_origen, 'es')
+      || a.razon_social_destino.localeCompare(b.razon_social_destino, 'es')
+    ));
+
+    prestamos.forEach((prestamo) => {
+      const origen = prestamo.razon_social_origen;
+      if (!grupos.has(origen)) {
+        grupos.set(origen, {
+          origen,
+          kilos: 0,
+          movimientos: 0,
+          items: {},
+          prestamos: [],
+        });
+      }
+
+      const grupo = grupos.get(origen);
+      grupo.kilos += prestamo.kilos;
+      grupo.movimientos += prestamo.movimientos;
+      grupo.prestamos.push(prestamo);
+      Object.entries(prestamo.items).forEach(([tipo, cantidad]) => {
+        grupo.items[tipo] = (grupo.items[tipo] || 0) + cantidad;
+      });
+    });
+
+    return Array.from(grupos.values()).map((grupo) => ({
+      ...grupo,
+      kilos: Math.round((grupo.kilos + Number.EPSILON) * 100) / 100,
+    }));
+  }, [datos]);
 
   const paramsFechas = () => {
     const params = {};
@@ -91,62 +118,15 @@ const ResumenSalidas = () => {
             <label>Fecha hasta</label>
             <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
           </div>
-          <div className="field-block" style={{ position: 'relative' }}>
-            <label>Cliente</label>
-            <div className="combo-control">
-              <input
-                value={cliente}
-                onChange={(e) => {
-                  setCliente(e.target.value);
-                  setVerTodos(false);
-                  setMostrarClientes(true);
-                }}
-                onFocus={() => setMostrarClientes(true)}
-                onBlur={() => setTimeout(() => setMostrarClientes(false), 120)}
-                placeholder="Escribí o elegí un cliente"
-              />
-              <button
-                type="button"
-                className="combo-arrow"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setVerTodos(true);
-                  setMostrarClientes(true);
-                }}
-              >
-                ▼
-              </button>
-            </div>
-            {mostrarClientes && (
-              <div className="combo-menu">
-                <button
-                  type="button"
-                  className="combo-option"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setCliente('');
-                    setMostrarClientes(false);
-                  }}
-                >
-                  Todos los clientes
-                </button>
-                {clientesFiltrados.map((nombre) => (
-                  <button
-                    type="button"
-                    className="combo-option"
-                    key={nombre}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setCliente(nombre);
-                      setMostrarClientes(false);
-                    }}
-                  >
-                    {nombre}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Combobox
+            id="cliente-resumen"
+            label="Cliente"
+            value={cliente}
+            onChange={setCliente}
+            options={clientes}
+            placeholder="Escribí o elegí un cliente"
+            clearLabel="Todos los clientes"
+          />
           <button type="button" className="btn-lg btn-primary" onClick={cargarResumen}>Aplicar filtros</button>
         </div>
         {error && <div className="alert alert-error">{error}</div>}
@@ -204,21 +184,73 @@ const ResumenSalidas = () => {
 
           <section className="card content-block">
             <div className="section-heading compact">
-              <h3>Préstamos entre razones sociales</h3>
-              <span className="loan-badge">Origen → destino</span>
+              <div>
+                <span className="eyebrow">Lectura consolidada</span>
+                <h3>Detalle unificado de préstamos</h3>
+              </div>
+              <span className="loan-badge">Agrupado por origen</span>
             </div>
-            {datos.prestamos.length === 0 ? (
+            {prestamosPorOrigen.length === 0 ? (
+              <p className="empty-copy">No se detectaron préstamos en el período.</p>
+            ) : (
+              <div className="loan-origin-list">
+                {prestamosPorOrigen.map((grupo) => (
+                  <article className="loan-origin-block" key={grupo.origen}>
+                    <header className="loan-origin-heading">
+                      <div>
+                        <span>Razón social de origen</span>
+                        <strong>{grupo.origen}</strong>
+                      </div>
+                      <div className="loan-origin-total">
+                        <strong>{grupo.kilos} kg</strong>
+                        <span>{grupo.movimientos} movimientos</span>
+                      </div>
+                    </header>
+                    <div className="table-scroll">
+                      <table className="table-modern loan-origin-table">
+                        <thead>
+                          <tr>
+                            <th>Destino</th>
+                            <th>Kilos</th>
+                            <th>Movimientos</th>
+                            <th>Piezas prestadas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {grupo.prestamos.map((prestamo) => (
+                            <tr key={`${prestamo.razon_social_origen}-${prestamo.razon_social_destino}`}>
+                              <td><strong>{prestamo.razon_social_destino}</strong></td>
+                              <td>{prestamo.kilos} kg</td>
+                              <td>{prestamo.movimientos}</td>
+                              <td>{Object.entries(prestamo.items).map(([tipo, cantidad]) => `${tipo}: ${cantidad}`).join(' / ')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="card content-block">
+            <div className="section-heading compact">
+              <h3>Préstamos por relación</h3>
+              <span className="loan-badge">Origen &rarr; destino</span>
+            </div>
+            {prestamosPorOrigen.length === 0 ? (
               <p className="empty-copy">No se detectaron préstamos en el período.</p>
             ) : (
               <div className="loan-grid">
-                {datos.prestamos.map((prestamo) => (
+                {prestamosPorOrigen.flatMap((grupo) => grupo.prestamos.map((prestamo) => (
                   <article className="loan-card" key={`${prestamo.razon_social_origen}-${prestamo.razon_social_destino}`}>
                     <span>{prestamo.razon_social_origen}</span>
-                    <strong>→ {prestamo.razon_social_destino}</strong>
+                    <strong>&rarr; {prestamo.razon_social_destino}</strong>
                     <p>{prestamo.kilos} kg · {prestamo.movimientos} movimientos</p>
                     <small>{Object.entries(prestamo.items).map(([tipo, cantidad]) => `${tipo}: ${cantidad}`).join(' · ')}</small>
                   </article>
-                ))}
+                )))}
               </div>
             )}
           </section>

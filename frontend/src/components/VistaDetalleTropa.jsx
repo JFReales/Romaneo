@@ -1,10 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../api';
+import Combobox from './Combobox';
 
 const VistaDetalleTropa = () => {
   const [tropas, setTropas] = useState([]);
   const [tropaId, setTropaId] = useState('');
+  const [busquedaTropa, setBusquedaTropa] = useState('');
   const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState('');
+
+  const tropasPorEtiqueta = useMemo(() => new Map(
+    tropas.map((tropa) => [`Tropa ${tropa.numero_tropa} - ${tropa.matadero}`, tropa]),
+  ), [tropas]);
+
+  const opcionesTropa = useMemo(
+    () => Array.from(tropasPorEtiqueta.keys()),
+    [tropasPorEtiqueta],
+  );
 
   useEffect(() => {
     const fetchTropas = async () => {
@@ -20,36 +33,57 @@ const VistaDetalleTropa = () => {
       return;
     }
 
+    setCargando(true);
+    setError('');
+    setDatos(null);
     try {
       const res = await api.get(`/tropas/${id}/mapa-completo`);
       setDatos(res.data);
     } catch (error) {
       console.error('Error al cargar el mapa', error);
+      setError('No se pudo cargar el detalle de la tropa.');
+    } finally {
+      setCargando(false);
     }
+  };
+
+  const seleccionarTropa = (etiqueta) => {
+    const tropa = tropasPorEtiqueta.get(etiqueta);
+    if (!tropa) return;
+
+    setBusquedaTropa(etiqueta);
+    setTropaId(String(tropa.id));
+    cargarMapa(tropa.id);
   };
 
   return (
     <div className="page-container page-container-full">
       <section className="card card-elevated content-block">
-        <label htmlFor="tropa-monitor" style={{ display: 'block', marginBottom: '6px' }}>
-          <strong>Seleccionar Tropa para Monitorear</strong>
-        </label>
-        <select
-          id="tropa-monitor"
-          value={tropaId}
-          onChange={(e) => {
-            setTropaId(e.target.value);
-            cargarMapa(e.target.value);
-          }}
-          style={{ width: '50%', padding: '8px', fontSize: '16px' }}
-        >
-          <option value="">Seleccionar</option>
-          {tropas.map((t) => (
-            <option key={t.id} value={t.id}>
-              Tropa {t.numero_tropa} - {t.matadero}
-            </option>
-          ))}
-        </select>
+        <div className="monitor-search-row">
+          <Combobox
+            id="tropa-monitor"
+            label="Buscar tropa para monitorear"
+            value={busquedaTropa}
+            options={opcionesTropa}
+            placeholder="Escribí el número de tropa o el matadero"
+            emptyMessage="No hay tropas que coincidan con la búsqueda."
+            onChange={(valor) => {
+              setBusquedaTropa(valor);
+              const seleccionada = tropasPorEtiqueta.get(valor);
+              if (!seleccionada || String(seleccionada.id) !== tropaId) {
+                setTropaId('');
+                setDatos(null);
+              }
+            }}
+            onSelect={seleccionarTropa}
+          />
+          {tropaId && (
+            <span className="selection-status">Tropa seleccionada</span>
+          )}
+        </div>
+        <p className="field-help">Usá ↑ y ↓ para recorrer los resultados y Enter para seleccionar.</p>
+        {cargando && <div className="status-info">Cargando detalle de la tropa...</div>}
+        {error && <div className="alert alert-error">{error}</div>}
       </section>
 
       {datos && (

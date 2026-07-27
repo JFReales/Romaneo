@@ -32,6 +32,31 @@ def _agregar_columnas_piezas():
             conn.execute(text("ALTER TABLE piezas ADD COLUMN cerrada BOOLEAN NOT NULL DEFAULT 0"))
 
 
+def _agregar_columnas_clientes():
+    dialecto = engine.dialect.name
+
+    if dialecto == "postgresql":
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS "
+                "razon_social_id INTEGER REFERENCES firmas_consignatarias(id)"
+            ))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_clientes_razon_social_id "
+                "ON clientes (razon_social_id)"
+            ))
+        return
+
+    columnas = {columna["name"] for columna in inspect(engine).get_columns("clientes")}
+    with engine.begin() as conn:
+        if "razon_social_id" not in columnas:
+            conn.execute(text("ALTER TABLE clientes ADD COLUMN razon_social_id INTEGER"))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_clientes_razon_social_id "
+            "ON clientes (razon_social_id)"
+        ))
+
+
 def _sembrar_firmas(db):
     firmas = {nombre: es_propia for nombre, es_propia in FIRMAS_INICIALES}
     for (nombre,) in db.query(models.Tropa.firma).distinct().all():
@@ -131,6 +156,7 @@ def _migrar_salidas_legacy(db):
 
 def run_migrations():
     _agregar_columnas_piezas()
+    _agregar_columnas_clientes()
 
     db = SessionLocal()
     try:

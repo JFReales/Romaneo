@@ -81,12 +81,17 @@ class FirmaConsignataria(Base):
     es_propia = Column(Boolean, default=False, nullable=False)
     creada_en = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
+    clientes = relationship("Cliente", back_populates="razon_social")
+
 
 class Cliente(Base):
     __tablename__ = "clientes"
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, unique=True, index=True, nullable=False)
+    razon_social_id = Column(Integer, ForeignKey("firmas_consignatarias.id"), nullable=True, index=True)
+
+    razon_social = relationship("FirmaConsignataria", back_populates="clientes")
 
 
 class Proveedor(Base):

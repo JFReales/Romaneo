@@ -20,14 +20,16 @@ def es_prestamo(origen, destino):
     return bool(origen and destino and normalizar_nombre(origen) != normalizar_nombre(destino))
 
 
-def asegurar_cliente(db: Session, nombre: str):
+def asegurar_cliente(db: Session, nombre: str, razon_social=None):
     nombre = (nombre or "").strip()
     if not nombre:
         raise HTTPException(status_code=400, detail="El cliente es obligatorio.")
 
     existente = db.query(models.Cliente).filter(models.Cliente.nombre.ilike(nombre)).first()
     if not existente:
-        db.add(models.Cliente(nombre=nombre))
+        existente = models.Cliente(nombre=nombre, razon_social=razon_social)
+        db.add(existente)
+    return existente
 
 
 def asegurar_firma(db: Session, nombre: str, es_propia: bool = False):
@@ -41,7 +43,17 @@ def asegurar_firma(db: Session, nombre: str, es_propia: bool = False):
         .first()
     )
     if not existente:
-        db.add(models.FirmaConsignataria(nombre=nombre, es_propia=es_propia))
+        existente = models.FirmaConsignataria(nombre=nombre, es_propia=es_propia)
+        db.add(existente)
+    return existente
+
+
+def peso_real_salida(salida: models.Salida):
+    """For a whole half-carcass, camera weight is the actual delivered weight."""
+    pieza = salida.pieza
+    if salida.tipo == "Media" and pieza and pieza.peso_salida_camara_kg is not None:
+        return float(pieza.peso_salida_camara_kg)
+    return float(salida.peso_kg)
 
 
 def salida_dict(salida: models.Salida):
@@ -51,7 +63,8 @@ def salida_dict(salida: models.Salida):
         "id": salida.id,
         "pieza_id": salida.pieza_id,
         "tipo": salida.tipo,
-        "peso_kg": float(salida.peso_kg),
+        "peso_kg": peso_real_salida(salida),
+        "peso_registrado_kg": float(salida.peso_kg),
         "cliente": salida.cliente,
         "razon_social_origen": salida.razon_social_origen,
         "razon_social_destino": salida.razon_social_destino,
@@ -73,7 +86,7 @@ def peso_base_pieza(pieza: models.Pieza):
 
 def total_salidas(pieza: models.Pieza, excluir_salida_id=None):
     return round(sum(
-        float(salida.peso_kg)
+        peso_real_salida(salida)
         for salida in pieza.salidas
         if salida.id != excluir_salida_id
     ), 2)
@@ -114,14 +127,15 @@ def recalcular_estado_pieza(pieza: models.Pieza):
     salidas = sorted(pieza.salidas, key=lambda salida: (salida.fecha_salida, salida.id or 0))
     for salida in salidas:
         if salida.tipo == "Media":
+            peso_real = peso_real_salida(salida)
             pieza.en_stock_pierna = False
             pieza.destino_pierna = salida.cliente
             pieza.fecha_salida_pierna = salida.fecha_salida
-            pieza.peso_salida_pierna_kg = float(salida.peso_kg) * 0.55
+            pieza.peso_salida_pierna_kg = peso_real * 0.55
             pieza.en_stock_espalda = False
             pieza.destino_espalda = salida.cliente
             pieza.fecha_salida_espalda = salida.fecha_salida
-            pieza.peso_salida_espalda_kg = float(salida.peso_kg) * 0.45
+            pieza.peso_salida_espalda_kg = peso_real * 0.45
         elif salida.tipo in TIPOS_PIERNA:
             pieza.en_stock_pierna = False
             pieza.destino_pierna = salida.cliente
@@ -172,13 +186,16 @@ def crear_salida(
             raise HTTPException(status_code=400, detail="El peso de camara no puede superar el peso de entrada.")
         pieza.peso_salida_camara_kg = float(peso_salida_camara_kg)
 
+    if tipo == "Media":
+        peso_kg = float(pieza.peso_salida_camara_kg)
+
     if tipo == "Media" and pieza.salidas:
         raise HTTPException(status_code=400, detail="No se puede sacar una media completa porque ya tiene salidas parciales.")
 
     cliente = (cliente or "").strip()
     razon_social_destino = (razon_social_destino or "").strip()
-    asegurar_cliente(db, cliente)
-    asegurar_firma(db, razon_social_destino)
+    firma_destino = asegurar_firma(db, razon_social_destino)
+    asegurar_cliente(db, cliente, firma_destino)
 
     origen = pieza.tropa.firma if pieza.tropa and pieza.tropa.firma else "Sin firma"
     salida = models.Salida(
@@ -241,7 +258,7 @@ def agrupar_prestamos(salidas):
         grupo["razon_social_origen"] = salida.razon_social_origen
         grupo["razon_social_destino"] = salida.razon_social_destino
         grupo["movimientos"] += 1
-        grupo["kilos"] += float(salida.peso_kg)
+        grupo["kilos"] += peso_real_salida(salida)
         grupo["items"][salida.tipo] += 1
 
     resultado = []
@@ -249,7 +266,10 @@ def agrupar_prestamos(salidas):
         grupo["kilos"] = round(grupo["kilos"], 2)
         grupo["items"] = dict(sorted(grupo["items"].items()))
         resultado.append(grupo)
-    return sorted(resultado, key=lambda grupo: grupo["kilos"], reverse=True)
+    return sorted(resultado, key=lambda grupo: (
+        normalizar_nombre(grupo["razon_social_origen"]),
+        normalizar_nombre(grupo["razon_social_destino"]),
+    ))
 
 
 def clasificar_existencia(pieza: models.Pieza, salidas_hasta_fecha):

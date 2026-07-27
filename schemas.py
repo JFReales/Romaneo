@@ -141,6 +141,7 @@ class Firma(FirmaBase):
 
 class ClienteBase(BaseModel):
     nombre: str
+    razon_social_id: Optional[int] = None
 
 
 class ClienteCreate(ClienteBase):
@@ -149,4 +150,5 @@ class ClienteCreate(ClienteBase):
 
 class Cliente(ClienteBase):
     id: int
+    razon_social: Optional[Firma] = None
     model_config = ConfigDict(from_attributes=True)
