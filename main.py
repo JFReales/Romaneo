@@ -25,7 +25,6 @@ from romaneo_service import (
     clave_resumen,
     crear_salida,
     es_prestamo,
-    fecha_en_rango,
     nueva_fila_cliente,
     peso_base_pieza,
     peso_real_salida,
@@ -758,74 +757,6 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
         "totales_propias": totales_propias,
         "propias": propias,
         "terceros": [fila for fila in filas if not fila["es_propia"]],
-    }
-
-
-@app.get("/merma/historico")
-def merma_historico(
-    fecha_desde: date | None = None,
-    fecha_hasta: date | None = None,
-    matadero: str | None = None,
-    db: Session = Depends(get_db),
-):
-    """Punto 2 Critico No prioritario: promedio de merma diaria (entrada vs camara)."""
-    _validar_rango(fecha_desde, fecha_hasta)
-
-    query = (
-        db.query(models.Pieza)
-        .join(models.Tropa)
-        .options(joinedload(models.Pieza.tropa), joinedload(models.Pieza.salidas))
-        .filter(models.Pieza.peso_salida_camara_kg.isnot(None))
-    )
-    if matadero:
-        query = query.filter(models.Tropa.matadero == matadero)
-
-    por_dia = defaultdict(lambda: {"piezas": 0, "kg_entrada": 0.0, "kg_camara": 0.0})
-    for pieza in query.all():
-        if not pieza.salidas:
-            continue
-        primera_salida = min(pieza.salidas, key=lambda salida: (salida.fecha_salida, salida.id or 0))
-        fecha_merma = primera_salida.fecha_salida.date()
-        if not fecha_en_rango(primera_salida.fecha_salida, fecha_desde, fecha_hasta):
-            continue
-
-        fila = por_dia[fecha_merma]
-        fila["piezas"] += 1
-        fila["kg_entrada"] += float(pieza.peso_entrada_kg or 0)
-        fila["kg_camara"] += float(pieza.peso_salida_camara_kg or 0)
-
-    def _merma_pct(kg_entrada, kg_camara):
-        if kg_entrada <= 0:
-            return 0.0
-        return round((kg_entrada - kg_camara) / kg_entrada * 100, 2)
-
-    detalle = []
-    for fecha_dia in sorted(por_dia):
-        fila = por_dia[fecha_dia]
-        detalle.append({
-            "fecha": fecha_dia.isoformat(),
-            "piezas": fila["piezas"],
-            "kg_entrada": round(fila["kg_entrada"], 2),
-            "kg_camara": round(fila["kg_camara"], 2),
-            "merma_pct": _merma_pct(fila["kg_entrada"], fila["kg_camara"]),
-        })
-
-    total_entrada = sum(fila["kg_entrada"] for fila in detalle)
-    total_camara = sum(fila["kg_camara"] for fila in detalle)
-
-    return {
-        "filtros": {
-            "fecha_desde": fecha_desde.isoformat() if fecha_desde else None,
-            "fecha_hasta": fecha_hasta.isoformat() if fecha_hasta else None,
-            "matadero": matadero,
-        },
-        "promedio": {
-            "piezas": sum(fila["piezas"] for fila in detalle),
-            "kg_entrada": round(total_entrada, 2),
-            "kg_camara": round(total_camara, 2),
-            "merma_pct": _merma_pct(total_entrada, total_camara),
-        },
-        "detalle": detalle,
     }
 
 

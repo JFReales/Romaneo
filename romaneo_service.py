@@ -72,24 +72,43 @@ def peso_real_salida(salida: models.Salida):
     return float(salida.peso_kg)
 
 
-def merma_entrada_camara_pct(pieza: models.Pieza):
-    if pieza is None or pieza.peso_salida_camara_kg is None:
+# La media entra como una sola pieza pesada en caliente: no hay un peso de
+# entrada separado por corte, asi que estimamos la porcion caliente de cada
+# tipo con la proporcion pierna/espalda de una media (el delantero, donde
+# va la espalda, pesa mas que el trasero, donde va la pierna).
+RATIO_CALIENTE_POR_TIPO = {
+    "Pierna": 0.45,
+    "Rueda": 0.45,
+    "Espalda": 0.55,
+    "Completo": 0.55,
+    "Vacio": 0.55,
+}
+
+
+def kg_caliente_estimado(pieza: models.Pieza, tipo: str):
+    if pieza is None or pieza.peso_entrada_kg is None:
         return None
-    entrada = float(pieza.peso_entrada_kg or 0)
-    if entrada <= 0:
+    ratio = RATIO_CALIENTE_POR_TIPO.get(tipo, 1.0)
+    return round(float(pieza.peso_entrada_kg) * ratio, 2)
+
+
+def merma_item_pct(kg_caliente, kg_frio):
+    if kg_caliente is None or kg_frio is None or kg_caliente <= 0:
         return None
-    return round((entrada - float(pieza.peso_salida_camara_kg)) / entrada * 100, 2)
+    return round((kg_caliente - kg_frio) / kg_caliente * 100, 2)
 
 
 def salida_dict(salida: models.Salida):
     pieza = salida.pieza
     tropa = pieza.tropa if pieza else None
+    kg_frio = peso_real_salida(salida)
+    kg_caliente = kg_caliente_estimado(pieza, salida.tipo)
 
     return {
         "id": salida.id,
         "pieza_id": salida.pieza_id,
         "tipo": salida.tipo,
-        "peso_kg": peso_real_salida(salida),
+        "peso_kg": kg_frio,
         "peso_registrado_kg": float(salida.peso_kg),
         "cliente": salida.cliente,
         "razon_social_origen": salida.razon_social_origen,
@@ -104,9 +123,8 @@ def salida_dict(salida: models.Salida):
         "firma": tropa.firma if tropa else None,
         "es_toro": bool(pieza.es_toro) if pieza else False,
         "campo": tropa.proveedor.nombre if tropa and tropa.proveedor else None,
-        "peso_entrada_kg": float(pieza.peso_entrada_kg) if pieza and pieza.peso_entrada_kg is not None else None,
-        "peso_salida_camara_kg": float(pieza.peso_salida_camara_kg) if pieza and pieza.peso_salida_camara_kg is not None else None,
-        "merma_entrada_camara_pct": merma_entrada_camara_pct(pieza),
+        "kg_caliente_estimado": kg_caliente,
+        "merma_pct": merma_item_pct(kg_caliente, kg_frio),
     }
 
 
@@ -171,11 +189,11 @@ def recalcular_estado_pieza(pieza: models.Pieza):
             pieza.en_stock_pierna = False
             pieza.destino_pierna = salida.cliente
             pieza.fecha_salida_pierna = salida.fecha_salida
-            pieza.peso_salida_pierna_kg = peso_real * 0.55
+            pieza.peso_salida_pierna_kg = peso_real * 0.45
             pieza.en_stock_espalda = False
             pieza.destino_espalda = salida.cliente
             pieza.fecha_salida_espalda = salida.fecha_salida
-            pieza.peso_salida_espalda_kg = peso_real * 0.45
+            pieza.peso_salida_espalda_kg = peso_real * 0.55
         elif salida.tipo in TIPOS_PIERNA:
             pieza.en_stock_pierna = False
             pieza.destino_pierna = salida.cliente

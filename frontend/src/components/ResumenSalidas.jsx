@@ -11,7 +11,6 @@ const ResumenSalidas = () => {
   const [cliente, setCliente] = useState('');
   const [clientes, setClientes] = useState([]);
   const [datos, setDatos] = useState(null);
-  const [merma, setMerma] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
@@ -86,20 +85,10 @@ const ResumenSalidas = () => {
     }
   };
 
-  const cargarMerma = async () => {
-    try {
-      const res = await api.get('/merma/historico', { params: paramsFechas() });
-      setMerma(res.data);
-    } catch {
-      setMerma(null);
-    }
-  };
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarResumen();
     cargarClientes();
-    cargarMerma();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -144,63 +133,12 @@ const ResumenSalidas = () => {
             placeholder="Escribí o elegí un cliente"
             clearLabel="Todos los clientes"
           />
-          <button
-            type="button"
-            className="btn-lg btn-primary"
-            onClick={() => { cargarResumen(); cargarMerma(); }}
-          >
-            Aplicar filtros
-          </button>
+          <button type="button" className="btn-lg btn-primary" onClick={cargarResumen}>Aplicar filtros</button>
         </div>
         {error && <div className="alert alert-error">{error}</div>}
       </section>
 
       {cargando && <section className="card content-block">Cargando resumen...</section>}
-
-      {merma && (
-        <section className="card content-block">
-          <div className="section-heading compact">
-            <div>
-              <span className="eyebrow">Entrada vs cámara</span>
-              <h3>Merma histórica</h3>
-            </div>
-            <span className="loan-badge">Promedio del período: {merma.promedio.merma_pct}%</span>
-          </div>
-          {merma.detalle.length === 0 ? (
-            <p className="empty-copy">No hay medias con peso de cámara registrado en este período.</p>
-          ) : (
-            <div className="table-scroll">
-              <table className="table-modern report-table">
-                <thead>
-                  <tr>
-                    <th>Fecha</th><th>Piezas</th><th>Kg caliente</th><th>Kg frío</th><th>% Merma</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {merma.detalle.map((fila) => (
-                    <tr key={fila.fecha}>
-                      <td>{new Date(`${fila.fecha}T12:00:00`).toLocaleDateString('es-AR')}</td>
-                      <td>{fila.piezas}</td>
-                      <td>{fila.kg_entrada} kg</td>
-                      <td>{fila.kg_camara} kg</td>
-                      <td>{fila.merma_pct}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td><strong>Promedio</strong></td>
-                    <td><strong>{merma.promedio.piezas}</strong></td>
-                    <td><strong>{merma.promedio.kg_entrada} kg</strong></td>
-                    <td><strong>{merma.promedio.kg_camara} kg</strong></td>
-                    <td><strong>{merma.promedio.merma_pct}%</strong></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
 
       {datos && !cargando && (
         <>
@@ -334,7 +272,7 @@ const ResumenSalidas = () => {
               <table className="table-modern">
                 <thead>
                   <tr>
-                    <th>Fecha</th><th>Cliente</th><th>Ítem</th><th>Kg</th>
+                    <th>Fecha</th><th>Cliente</th><th>Ítem</th>
                     <th>Kg caliente</th><th>Kg frío</th><th>% Merma</th>
                     <th>Tropa / pieza</th><th>Campo</th><th>Destino razón social</th>
                   </tr>
@@ -345,10 +283,9 @@ const ResumenSalidas = () => {
                       <td>{new Date(item.fecha_salida).toLocaleDateString('es-AR')}</td>
                       <td>{item.cliente}</td>
                       <td>{item.tipo === 'Vacio' ? 'Vacío' : item.tipo}{item.es_toro ? ' Toro' : ''}</td>
+                      <td>{item.kg_caliente_estimado != null ? `${item.kg_caliente_estimado} kg` : '—'}</td>
                       <td>{item.peso_kg} kg</td>
-                      <td>{item.peso_entrada_kg != null ? `${item.peso_entrada_kg} kg` : '—'}</td>
-                      <td>{item.peso_salida_camara_kg != null ? `${item.peso_salida_camara_kg} kg` : '—'}</td>
-                      <td>{item.merma_entrada_camara_pct != null ? `${item.merma_entrada_camara_pct}%` : '—'}</td>
+                      <td>{item.merma_pct != null ? `${item.merma_pct}%` : '—'}</td>
                       <td>{item.numero_tropa} / {item.numero_pieza}</td>
                       <td>{item.campo || 'Sin proveedor'}</td>
                       <td>{item.razon_social_destino}{item.es_prestamo && <span className="loan-dot">Préstamo</span>}</td>
