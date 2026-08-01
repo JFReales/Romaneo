@@ -66,7 +66,11 @@ def _validar_rango(fecha_desde, fecha_hasta):
 def _query_salidas(db, fecha_desde=None, fecha_hasta=None, cliente=None):
     query = (
         db.query(models.Salida)
-        .options(joinedload(models.Salida.pieza).joinedload(models.Pieza.tropa))
+        .options(
+            joinedload(models.Salida.pieza)
+            .joinedload(models.Pieza.tropa)
+            .joinedload(models.Tropa.proveedor)
+        )
     )
     if fecha_desde:
         query = query.filter(models.Salida.fecha_salida >= datetime.combine(fecha_desde, time.min))
@@ -388,7 +392,11 @@ def listar_proveedores(db: Session = Depends(get_db)):
 def listar_salidas_pieza(pieza_id: int, db: Session = Depends(get_db)):
     salidas = (
         db.query(models.Salida)
-        .options(joinedload(models.Salida.pieza).joinedload(models.Pieza.tropa))
+        .options(
+            joinedload(models.Salida.pieza)
+            .joinedload(models.Pieza.tropa)
+            .joinedload(models.Tropa.proveedor)
+        )
         .filter(models.Salida.pieza_id == pieza_id)
         .order_by(models.Salida.fecha_salida.asc(), models.Salida.id.asc())
         .all()
@@ -434,7 +442,11 @@ def registrar_salida(datos: schemas.SalidaCreate, db: Session = Depends(get_db))
 def actualizar_salida(salida_id: int, datos: schemas.SalidaUpdate, db: Session = Depends(get_db)):
     salida = (
         db.query(models.Salida)
-        .options(joinedload(models.Salida.pieza).joinedload(models.Pieza.tropa))
+        .options(
+            joinedload(models.Salida.pieza)
+            .joinedload(models.Pieza.tropa)
+            .joinedload(models.Tropa.proveedor)
+        )
         .filter(models.Salida.id == salida_id)
         .first()
     )
@@ -680,18 +692,22 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
         for firma in db.query(models.FirmaConsignataria).all()
     }
 
-    grupos = defaultdict(lambda: {
-        "matadero": "",
-        "firma": "",
-        "es_propia": False,
-        "medias": 0,
-        "piernas": 0,
-        "espaldas": 0,
-        "media_toro": 0,
-        "piernas_toro": 0,
-        "espaldas_toro": 0,
-        "kilos_estimados": 0.0,
-    })
+    CLASIFICACIONES = ("medias", "piernas", "espaldas", "media_toro", "piernas_toro", "espaldas_toro")
+
+    def _fila_vacia():
+        fila = {
+            "matadero": "",
+            "firma": "",
+            "es_propia": False,
+            "kilos_estimados": 0.0,
+            "medias_pesadas": 0,
+        }
+        for clave in CLASIFICACIONES:
+            fila[clave] = 0
+            fila[f"{clave}_kg"] = 0.0
+        return fila
+
+    grupos = defaultdict(_fila_vacia)
 
     for pieza in piezas:
         salidas_fecha = [salida for salida in pieza.salidas if salida.fecha_salida < cierre]
@@ -706,23 +722,110 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
         grupo["es_propia"] = firmas.get(pieza.tropa.firma.lower(), False)
         grupo[clasificacion] += 1
         peso_salida = sum(float(salida.peso_kg) for salida in salidas_fecha)
-        grupo["kilos_estimados"] += max(0.0, peso_base_pieza(pieza) - peso_salida)
+
+        peso_base = peso_base_pieza(pieza)
+        saldo = max(0.0, peso_base - peso_salida)
+        grupo["kilos_estimados"] += saldo
+        grupo[f"{clasificacion}_kg"] += saldo
+
+        # Punto 4 Critico No prioritario: medias >= 136kg
+        if clasificacion in ("medias", "media_toro") and peso_base >= 136:
+            grupo["medias_pesadas"] += 1
 
     filas = list(grupos.values())
     for fila in filas:
         fila["kilos_estimados"] = round(fila["kilos_estimados"], 2)
+        for clasificacion in CLASIFICACIONES:
+            fila[f"{clasificacion}_kg"] = round(fila[f"{clasificacion}_kg"], 2)
     filas.sort(key=lambda fila: (fila["matadero"], not fila["es_propia"], fila["firma"].lower()))
 
-    totales = {
-        clave: sum(fila[clave] for fila in filas)
-        for clave in ("medias", "piernas", "espaldas", "media_toro", "piernas_toro", "espaldas_toro")
-    }
-    totales["kilos_estimados"] = round(sum(fila["kilos_estimados"] for fila in filas), 2)
+    def _totales(filas_grupo):
+        totales = {clave: sum(fila[clave] for fila in filas_grupo) for clave in CLASIFICACIONES}
+        for clasificacion in CLASIFICACIONES:
+            totales[f"{clasificacion}_kg"] = round(sum(fila[f"{clasificacion}_kg"] for fila in filas_grupo), 2)
+        totales["kilos_estimados"] = round(sum(fila["kilos_estimados"] for fila in filas_grupo), 2)
+        totales["medias_pesadas"] = sum(fila["medias_pesadas"] for fila in filas_grupo)
+        return totales
+
+    totales = _totales(filas)
+    # Existencias de firmas propias
+    propias = [fila for fila in filas if fila["es_propia"]]
+    totales_propias = _totales(propias)
+
     return {
         "fecha": fecha_objetivo.isoformat(),
         "totales": totales,
-        "propias": [fila for fila in filas if fila["es_propia"]],
+        "totales_propias": totales_propias,
+        "propias": propias,
         "terceros": [fila for fila in filas if not fila["es_propia"]],
+    }
+
+
+@app.get("/merma/historico")
+def merma_historico(
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+    matadero: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Punto 2 Critico No prioritario: promedio de merma diaria (entrada vs camara)."""
+    _validar_rango(fecha_desde, fecha_hasta)
+
+    query = (
+        db.query(models.Pieza)
+        .join(models.Tropa)
+        .options(joinedload(models.Pieza.tropa), joinedload(models.Pieza.salidas))
+        .filter(models.Pieza.peso_salida_camara_kg.isnot(None))
+    )
+    if matadero:
+        query = query.filter(models.Tropa.matadero == matadero)
+
+    por_dia = defaultdict(lambda: {"piezas": 0, "kg_entrada": 0.0, "kg_camara": 0.0})
+    for pieza in query.all():
+        if not pieza.salidas:
+            continue
+        primera_salida = min(pieza.salidas, key=lambda salida: (salida.fecha_salida, salida.id or 0))
+        fecha_merma = primera_salida.fecha_salida.date()
+        if not fecha_en_rango(primera_salida.fecha_salida, fecha_desde, fecha_hasta):
+            continue
+
+        fila = por_dia[fecha_merma]
+        fila["piezas"] += 1
+        fila["kg_entrada"] += float(pieza.peso_entrada_kg or 0)
+        fila["kg_camara"] += float(pieza.peso_salida_camara_kg or 0)
+
+    def _merma_pct(kg_entrada, kg_camara):
+        if kg_entrada <= 0:
+            return 0.0
+        return round((kg_entrada - kg_camara) / kg_entrada * 100, 2)
+
+    detalle = []
+    for fecha_dia in sorted(por_dia):
+        fila = por_dia[fecha_dia]
+        detalle.append({
+            "fecha": fecha_dia.isoformat(),
+            "piezas": fila["piezas"],
+            "kg_entrada": round(fila["kg_entrada"], 2),
+            "kg_camara": round(fila["kg_camara"], 2),
+            "merma_pct": _merma_pct(fila["kg_entrada"], fila["kg_camara"]),
+        })
+
+    total_entrada = sum(fila["kg_entrada"] for fila in detalle)
+    total_camara = sum(fila["kg_camara"] for fila in detalle)
+
+    return {
+        "filtros": {
+            "fecha_desde": fecha_desde.isoformat() if fecha_desde else None,
+            "fecha_hasta": fecha_hasta.isoformat() if fecha_hasta else None,
+            "matadero": matadero,
+        },
+        "promedio": {
+            "piezas": sum(fila["piezas"] for fila in detalle),
+            "kg_entrada": round(total_entrada, 2),
+            "kg_camara": round(total_camara, 2),
+            "merma_pct": _merma_pct(total_entrada, total_camara),
+        },
+        "detalle": detalle,
     }
 
 

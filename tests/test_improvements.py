@@ -128,7 +128,7 @@ class ImprovementsIntegrationTests(unittest.TestCase):
             db.close()
 
     def test_04_loans_are_ordered_by_origin_then_destination(self):
-        piece = SimpleNamespace(peso_salida_camara_kg=None)
+        piece = SimpleNamespace(peso_salida_camara_kg=None, es_toro=False)
         exits = [
             SimpleNamespace(
                 pieza=piece,

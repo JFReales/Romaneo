@@ -11,6 +11,12 @@ TIPOS_SALIDA = ("Media", "Pierna", "Espalda", "Rueda", "Completo", "Vacio")
 TIPOS_PIERNA = {"Pierna", "Rueda"}
 TIPOS_ESPALDA = {"Espalda", "Completo", "Vacio"}
 
+# Punto 1 Critico No prioritario: en las pantallas de prestamos, Ganadera y Hacienda
+# de Raza se muestran como una sola parte frente a Erre de Mayoristas (y viceversa).
+FIRMAS_UNIFICADAS_PRESTAMO = ("Ganadera Roberto Graziotin S.A.", "Hacienda de Raza S.A.")
+CONTRAPARTE_UNIFICACION_PRESTAMO = "Erre de Mayoristas S.A."
+NOMBRE_UNIFICADO_PRESTAMO = " + ".join(FIRMAS_UNIFICADAS_PRESTAMO)
+
 
 def normalizar_nombre(valor):
     return " ".join((valor or "").strip().lower().split())
@@ -18,6 +24,16 @@ def normalizar_nombre(valor):
 
 def es_prestamo(origen, destino):
     return bool(origen and destino and normalizar_nombre(origen) != normalizar_nombre(destino))
+
+
+def _nombre_prestamo_unificado(nombre, contraparte):
+    firmas_normalizadas = {normalizar_nombre(firma) for firma in FIRMAS_UNIFICADAS_PRESTAMO}
+    if (
+        normalizar_nombre(contraparte) == normalizar_nombre(CONTRAPARTE_UNIFICACION_PRESTAMO)
+        and normalizar_nombre(nombre) in firmas_normalizadas
+    ):
+        return NOMBRE_UNIFICADO_PRESTAMO
+    return nombre
 
 
 def asegurar_cliente(db: Session, nombre: str, razon_social=None):
@@ -56,9 +72,19 @@ def peso_real_salida(salida: models.Salida):
     return float(salida.peso_kg)
 
 
+def merma_entrada_camara_pct(pieza: models.Pieza):
+    if pieza is None or pieza.peso_salida_camara_kg is None:
+        return None
+    entrada = float(pieza.peso_entrada_kg or 0)
+    if entrada <= 0:
+        return None
+    return round((entrada - float(pieza.peso_salida_camara_kg)) / entrada * 100, 2)
+
+
 def salida_dict(salida: models.Salida):
     pieza = salida.pieza
     tropa = pieza.tropa if pieza else None
+
     return {
         "id": salida.id,
         "pieza_id": salida.pieza_id,
@@ -77,6 +103,10 @@ def salida_dict(salida: models.Salida):
         "matadero": tropa.matadero if tropa else None,
         "firma": tropa.firma if tropa else None,
         "es_toro": bool(pieza.es_toro) if pieza else False,
+        "campo": tropa.proveedor.nombre if tropa and tropa.proveedor else None,
+        "peso_entrada_kg": float(pieza.peso_entrada_kg) if pieza and pieza.peso_entrada_kg is not None else None,
+        "peso_salida_camara_kg": float(pieza.peso_salida_camara_kg) if pieza and pieza.peso_salida_camara_kg is not None else None,
+        "merma_entrada_camara_pct": merma_entrada_camara_pct(pieza),
     }
 
 
@@ -103,6 +133,16 @@ def advertencia_balance(pieza: models.Pieza):
     base = float(pieza.peso_salida_camara_kg)
     total = total_salidas(pieza)
     diferencia = abs(base - total)
+
+    # Alerta especifica para merma entre Pierna + Espalda vs Media de camara
+    tipos_en_salidas = {s.tipo for s in pieza.salidas}
+    if "Pierna" in tipos_en_salidas and "Espalda" in tipos_en_salidas:
+        if diferencia > 2.0:
+            return (
+                f"ALERTAR: La suma de pierna y espalda ({total:.2f} kg) difiere en "
+                f"{diferencia:.2f} kg del peso de salida de media ({base:.2f} kg)."
+            )
+
     if diferencia <= 0.5:
         return None
 
@@ -248,22 +288,37 @@ def agrupar_prestamos(salidas):
         "razon_social_destino": "",
         "movimientos": 0,
         "kilos": 0.0,
+        "kilos_toro": 0.0,
+        "kilos_nov_vaq": 0.0,
         "items": defaultdict(int),
     })
     for salida in salidas:
         if not es_prestamo(salida.razon_social_origen, salida.razon_social_destino):
             continue
-        clave = (salida.razon_social_origen, salida.razon_social_destino)
+        origen = _nombre_prestamo_unificado(salida.razon_social_origen, salida.razon_social_destino)
+        destino = _nombre_prestamo_unificado(salida.razon_social_destino, salida.razon_social_origen)
+        clave = (origen, destino)
         grupo = grupos[clave]
-        grupo["razon_social_origen"] = salida.razon_social_origen
-        grupo["razon_social_destino"] = salida.razon_social_destino
+        grupo["razon_social_origen"] = origen
+        grupo["razon_social_destino"] = destino
         grupo["movimientos"] += 1
-        grupo["kilos"] += peso_real_salida(salida)
-        grupo["items"][salida.tipo] += 1
+        peso = peso_real_salida(salida)
+        grupo["kilos"] += peso
+
+        es_toro = bool(salida.pieza and salida.pieza.es_toro)
+        if es_toro:
+            grupo["kilos_toro"] += peso
+        else:
+            grupo["kilos_nov_vaq"] += peso
+
+        tipo_display = f"{salida.tipo} (Toro)" if es_toro else salida.tipo
+        grupo["items"][tipo_display] += 1
 
     resultado = []
     for grupo in grupos.values():
         grupo["kilos"] = round(grupo["kilos"], 2)
+        grupo["kilos_toro"] = round(grupo["kilos_toro"], 2)
+        grupo["kilos_nov_vaq"] = round(grupo["kilos_nov_vaq"], 2)
         grupo["items"] = dict(sorted(grupo["items"].items()))
         resultado.append(grupo)
     return sorted(resultado, key=lambda grupo: (

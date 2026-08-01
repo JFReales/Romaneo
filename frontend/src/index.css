@@ -834,6 +834,10 @@ td {
   background: #fde68a;
 }
 
+.summary-card.warning::after {
+  background: #fecaca;
+}
+
 .summary-card span,
 .summary-card strong,
 .summary-card small {

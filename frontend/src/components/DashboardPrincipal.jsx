@@ -4,6 +4,13 @@ import api from '../api';
 
 const hoyISO = new Date().toISOString().slice(0, 10);
 
+const CeldaTipo = ({ fila, campo }) => (
+  <td className="metric-cell">
+    <strong>{fila[campo]}</strong>
+    <small>{fila[`${campo}_kg`]} kg</small>
+  </td>
+);
+
 const TablaExistencia = ({ titulo, filas, descripcion }) => (
   <section className="card content-block inventory-section">
     <div className="section-heading compact">
@@ -21,7 +28,8 @@ const TablaExistencia = ({ titulo, filas, descripcion }) => (
           <thead>
             <tr>
               <th>Matadero</th><th>Razón social</th><th>Medias</th><th>Piernas</th><th>Espaldas</th>
-              <th>Medias Toro</th><th>Piernas Toro</th><th>Espaldas Toro</th><th>Kg estimados</th>
+              <th>Medias Toro</th><th>Piernas Toro</th><th>Espaldas Toro</th>
+              <th>Medias ≥136kg</th><th>Kg estimados</th>
             </tr>
           </thead>
           <tbody>
@@ -29,12 +37,13 @@ const TablaExistencia = ({ titulo, filas, descripcion }) => (
               <tr key={`${fila.matadero}-${fila.firma}`}>
                 <td><strong>{fila.matadero}</strong></td>
                 <td>{fila.firma}</td>
-                <td>{fila.medias}</td>
-                <td>{fila.piernas}</td>
-                <td>{fila.espaldas}</td>
-                <td>{fila.media_toro}</td>
-                <td>{fila.piernas_toro}</td>
-                <td>{fila.espaldas_toro}</td>
+                <CeldaTipo fila={fila} campo="medias" />
+                <CeldaTipo fila={fila} campo="piernas" />
+                <CeldaTipo fila={fila} campo="espaldas" />
+                <CeldaTipo fila={fila} campo="media_toro" />
+                <CeldaTipo fila={fila} campo="piernas_toro" />
+                <CeldaTipo fila={fila} campo="espaldas_toro" />
+                <td>{fila.medias_pesadas}</td>
                 <td><strong>{fila.kilos_estimados} kg</strong></td>
               </tr>
             ))}
@@ -99,12 +108,14 @@ const DashboardPrincipal = () => {
       {existencia && !cargando && (
         <>
           <section className="summary-cards inventory-totals">
-            <article className="summary-card"><span>Medias</span><strong>{existencia.totales.medias}</strong></article>
-            <article className="summary-card"><span>Piernas</span><strong>{existencia.totales.piernas}</strong></article>
-            <article className="summary-card"><span>Espaldas</span><strong>{existencia.totales.espaldas}</strong></article>
-            <article className="summary-card bull"><span>Medias Toro</span><strong>{existencia.totales.media_toro}</strong></article>
-            <article className="summary-card"><span>Kg estimados</span><strong>{existencia.totales.kilos_estimados}</strong><small>kg</small></article>
+            <article className="summary-card"><span>Medias</span><strong>{existencia.totales_propias.medias}</strong></article>
+            <article className="summary-card"><span>Piernas</span><strong>{existencia.totales_propias.piernas}</strong></article>
+            <article className="summary-card"><span>Espaldas</span><strong>{existencia.totales_propias.espaldas}</strong></article>
+            <article className="summary-card bull"><span>Medias Toro</span><strong>{existencia.totales_propias.media_toro}</strong></article>
+            <article className="summary-card warning"><span>Medias ≥136kg</span><strong>{existencia.totales_propias.medias_pesadas}</strong></article>
+            <article className="summary-card"><span>Kg estimados</span><strong>{existencia.totales_propias.kilos_estimados}</strong><small>kg</small></article>
           </section>
+          <p className="table-note">Totales solo entre firmas propias.</p>
 
           <TablaExistencia
             titulo="Firmas propias"
@@ -137,6 +148,7 @@ const DashboardPrincipal = () => {
                   <span>{item.razon_social_origen}</span>
                   <strong>→ {item.razon_social_destino}</strong>
                   <p>{item.kilos} kg · {item.movimientos} movimientos</p>
+                  <small>Nov/Vaq: {item.kilos_nov_vaq} kg · Toro: {item.kilos_toro} kg</small>
                 </article>
               ))}
             </div>
