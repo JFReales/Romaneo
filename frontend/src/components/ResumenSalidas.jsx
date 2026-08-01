@@ -272,7 +272,7 @@ const ResumenSalidas = () => {
               <table className="table-modern">
                 <thead>
                   <tr>
-                    <th>Fecha</th><th>Cliente</th><th>Ítem</th>
+                    <th>Fecha</th><th>Cliente</th><th>Ítem</th><th>Kg</th>
                     <th>Kg caliente</th><th>Kg frío</th><th>% Merma</th>
                     <th>Tropa / pieza</th><th>Campo</th><th>Destino razón social</th>
                   </tr>
@@ -283,9 +283,10 @@ const ResumenSalidas = () => {
                       <td>{new Date(item.fecha_salida).toLocaleDateString('es-AR')}</td>
                       <td>{item.cliente}</td>
                       <td>{item.tipo === 'Vacio' ? 'Vacío' : item.tipo}{item.es_toro ? ' Toro' : ''}</td>
-                      <td>{item.kg_caliente_estimado != null ? `${item.kg_caliente_estimado} kg` : '—'}</td>
                       <td>{item.peso_kg} kg</td>
-                      <td>{item.merma_pct != null ? `${item.merma_pct}%` : '—'}</td>
+                      <td>{item.peso_entrada_kg != null ? `${item.peso_entrada_kg} kg` : '—'}</td>
+                      <td>{item.peso_salida_camara_kg != null ? `${item.peso_salida_camara_kg} kg` : '—'}</td>
+                      <td>{item.merma_entrada_camara_pct != null ? `${item.merma_entrada_camara_pct}%` : '—'}</td>
                       <td>{item.numero_tropa} / {item.numero_pieza}</td>
                       <td>{item.campo || 'Sin proveedor'}</td>
                       <td>{item.razon_social_destino}{item.es_prestamo && <span className="loan-dot">Préstamo</span>}</td>
