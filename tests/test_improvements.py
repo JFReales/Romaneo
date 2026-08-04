@@ -40,7 +40,7 @@ from main import (  # noqa: E402
     resumen_salidas,
     verificar_pieza_salida,
 )
-from romaneo_service import agrupar_prestamos  # noqa: E402
+from romaneo_service import agrupar_prestamos, clasificar_existencia  # noqa: E402
 
 
 class ImprovementsIntegrationTests(unittest.TestCase):
@@ -157,6 +157,30 @@ class ImprovementsIntegrationTests(unittest.TestCase):
         self.assertEqual(
             [(group["razon_social_origen"], group["razon_social_destino"]) for group in groups],
             [("Erre de", "Alessandra"), ("Erre de", "Rizzo"), ("Ganadera", "Tiento")],
+        )
+
+    def test_05_rueda_leaves_espalda_in_stock_and_completo_stays_apart(self):
+        pieza = SimpleNamespace(es_toro=False)
+
+        def salida(tipo):
+            return SimpleNamespace(tipo=tipo, cierra_pieza=False)
+
+        # Rueda == la pierna se fue: la existencia pasa a "espaldas".
+        self.assertEqual(clasificar_existencia(pieza, [salida("Rueda")]), "espaldas")
+
+        # Caso pieza #136: Rueda + Completo (bug reportado: quedaba como "medias").
+        self.assertEqual(
+            clasificar_existencia(pieza, [salida("Rueda"), salida("Completo")]),
+            "espaldas",
+        )
+
+        # Completo solo, sin Rueda/Pierna, todavia no debe tocar la clasificacion.
+        self.assertEqual(clasificar_existencia(pieza, [salida("Completo")]), "medias")
+
+        pieza_toro = SimpleNamespace(es_toro=True)
+        self.assertEqual(
+            clasificar_existencia(pieza_toro, [salida("Rueda"), salida("Completo")]),
+            "espaldas_toro",
         )
 
 

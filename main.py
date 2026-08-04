@@ -727,8 +727,8 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
         grupo["kilos_estimados"] += saldo
         grupo[f"{clasificacion}_kg"] += saldo
 
-        # Punto 4 Critico No prioritario: medias >= 136kg
-        if clasificacion in ("medias", "media_toro") and peso_base >= 136:
+        # Medias >= 136kg: solo aplica a carne nov/vaq, los toros quedan afuera.
+        if clasificacion == "medias" and peso_base >= 136:
             grupo["medias_pesadas"] += 1
 
     filas = list(grupos.values())

@@ -163,6 +163,8 @@ const ResumenSalidas = () => {
                       <th>Espaldas</th>
                       <th>Piernas</th>
                       <th>Rueda</th>
+                      <th>Completo</th>
+                      <th>Vacío</th>
                       <th>Media Toro</th>
                       <th>Espaldas Toro</th>
                       <th>Piernas Toro</th>
@@ -176,6 +178,8 @@ const ResumenSalidas = () => {
                         <Celda fila={fila} campo="espaldas" />
                         <Celda fila={fila} campo="piernas" />
                         <Celda fila={fila} campo="rueda" />
+                        <Celda fila={fila} campo="completos" />
+                        <Celda fila={fila} campo="vacios" />
                         <Celda fila={fila} campo="media_toro" />
                         <Celda fila={fila} campo="espaldas_toro" />
                         <Celda fila={fila} campo="piernas_toro" />
@@ -185,7 +189,6 @@ const ResumenSalidas = () => {
                 </table>
               </div>
             )}
-            <p className="table-note">Completo y Vacío se conservan como ítems propios en el detalle de movimientos.</p>
           </section>
 
           <section className="card content-block">
