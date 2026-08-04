@@ -144,7 +144,6 @@ const DashboardPrincipal = () => {
               </strong>
               <small>kg</small>
             </article>
-            <article className="summary-card bull"><span>Medias Toro ≥136kg</span><strong>{existencia.totales_propias.medias_toro_pesadas}</strong></article>
           </section>
           <p className="table-note">Totales solo entre firmas propias.</p>
 
