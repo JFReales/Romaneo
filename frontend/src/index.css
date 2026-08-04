@@ -216,7 +216,7 @@ td {
   color: #0f172a;
 }
 
-.table-modern tbody tr:nth-child(odd) td {
+.table-modern tbody tr:nth-child(even) td {
   background: #eff4ff;
 }
 
