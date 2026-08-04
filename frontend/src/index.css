@@ -193,7 +193,6 @@ td {
 }
 
 .table-modern {
-  overflow: hidden;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: #ffffff;
@@ -204,6 +203,10 @@ td {
 }
 
 .table-modern th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #eff4ff;
   color: #1e293b;
   font-weight: 700;
   border-bottom: 1px solid var(--line);
@@ -211,6 +214,10 @@ td {
 
 .table-modern td {
   color: #0f172a;
+}
+
+.table-modern tbody tr:nth-child(odd) td {
+  background: #eff4ff;
 }
 
 .table-modern tbody tr:not(:last-child) td {
@@ -766,7 +773,8 @@ td {
 
 .table-scroll {
   width: 100%;
-  overflow-x: auto;
+  max-height: 65vh;
+  overflow: auto;
   border-radius: 12px;
 }
 

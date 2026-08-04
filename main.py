@@ -700,6 +700,7 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
             "es_propia": False,
             "kilos_estimados": 0.0,
             "medias_pesadas": 0,
+            "medias_toro_pesadas": 0,
         }
         for clave in CLASIFICACIONES:
             fila[clave] = 0
@@ -727,9 +728,11 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
         grupo["kilos_estimados"] += saldo
         grupo[f"{clasificacion}_kg"] += saldo
 
-        # Medias >= 136kg: solo aplica a carne nov/vaq, los toros quedan afuera.
+        # Medias >= 136kg: se cuenta por separado para nov/vaq y para toro.
         if clasificacion == "medias" and peso_base >= 136:
             grupo["medias_pesadas"] += 1
+        elif clasificacion == "media_toro" and peso_base >= 136:
+            grupo["medias_toro_pesadas"] += 1
 
     filas = list(grupos.values())
     for fila in filas:
@@ -744,6 +747,7 @@ def existencias_diarias(fecha: date | None = None, db: Session = Depends(get_db)
             totales[f"{clasificacion}_kg"] = round(sum(fila[f"{clasificacion}_kg"] for fila in filas_grupo), 2)
         totales["kilos_estimados"] = round(sum(fila["kilos_estimados"] for fila in filas_grupo), 2)
         totales["medias_pesadas"] = sum(fila["medias_pesadas"] for fila in filas_grupo)
+        totales["medias_toro_pesadas"] = sum(fila["medias_toro_pesadas"] for fila in filas_grupo)
         return totales
 
     totales = _totales(filas)

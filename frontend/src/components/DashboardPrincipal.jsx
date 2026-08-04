@@ -109,24 +109,13 @@ const DashboardPrincipal = () => {
 
       {existencia && !cargando && (
         <>
+          <p className="table-note">Novillos y vaquillonas.</p>
           <section className="summary-cards inventory-totals">
+            <article className="summary-card"><span>Medias</span><strong>{existencia.totales_propias.medias}</strong></article>
+            <article className="summary-card"><span>Piernas</span><strong>{existencia.totales_propias.piernas}</strong></article>
+            <article className="summary-card"><span>Espaldas</span><strong>{existencia.totales_propias.espaldas}</strong></article>
             <article className="summary-card">
-              <span>Medias</span>
-              <strong>{existencia.totales_propias.medias}</strong>
-              <small>Toro: {existencia.totales_propias.media_toro}</small>
-            </article>
-            <article className="summary-card">
-              <span>Piernas</span>
-              <strong>{existencia.totales_propias.piernas + existencia.totales_propias.piernas_toro}</strong>
-              <small>Nov/Vaq: {existencia.totales_propias.piernas} · Toro: {existencia.totales_propias.piernas_toro}</small>
-            </article>
-            <article className="summary-card">
-              <span>Espaldas</span>
-              <strong>{existencia.totales_propias.espaldas + existencia.totales_propias.espaldas_toro}</strong>
-              <small>Nov/Vaq: {existencia.totales_propias.espaldas} · Toro: {existencia.totales_propias.espaldas_toro}</small>
-            </article>
-            <article className="summary-card">
-              <span>Kg estimados Nov/Vaq</span>
+              <span>Kg estimados</span>
               <strong>
                 {redondear(
                   existencia.totales_propias.medias_kg
@@ -134,16 +123,28 @@ const DashboardPrincipal = () => {
                   + existencia.totales_propias.espaldas_kg
                 )}
               </strong>
-              <small>
-                Toro: {redondear(
+              <small>kg</small>
+            </article>
+            <article className="summary-card warning"><span>Medias ≥136kg</span><strong>{existencia.totales_propias.medias_pesadas}</strong></article>
+          </section>
+
+          <p className="table-note">Toros.</p>
+          <section className="summary-cards inventory-totals">
+            <article className="summary-card bull"><span>Medias Toro</span><strong>{existencia.totales_propias.media_toro}</strong></article>
+            <article className="summary-card bull"><span>Piernas Toro</span><strong>{existencia.totales_propias.piernas_toro}</strong></article>
+            <article className="summary-card bull"><span>Espaldas Toro</span><strong>{existencia.totales_propias.espaldas_toro}</strong></article>
+            <article className="summary-card bull">
+              <span>Kg estimados Toro</span>
+              <strong>
+                {redondear(
                   existencia.totales_propias.media_toro_kg
                   + existencia.totales_propias.piernas_toro_kg
                   + existencia.totales_propias.espaldas_toro_kg
-                )} kg
-              </small>
+                )}
+              </strong>
+              <small>kg</small>
             </article>
-            <article className="summary-card warning"><span>Medias ≥136kg</span><strong>{existencia.totales_propias.medias_pesadas}</strong></article>
-            <article className="summary-card"><span>Kg estimados</span><strong>{existencia.totales_propias.kilos_estimados}</strong><small>kg</small></article>
+            <article className="summary-card bull"><span>Medias Toro ≥136kg</span><strong>{existencia.totales_propias.medias_toro_pesadas}</strong></article>
           </section>
           <p className="table-note">Totales solo entre firmas propias.</p>
 

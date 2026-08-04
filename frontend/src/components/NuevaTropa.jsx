@@ -284,34 +284,36 @@ const NuevaTropa = () => {
         {tropas.length === 0 ? (
           <p style={{ color: '#64748b' }}>No hay tropas cargadas aun.</p>
         ) : (
-          <table className="table-modern" style={{ marginTop: '10px' }}>
-            <thead>
-              <tr>
-                <th>Nro Tropa</th>
-                <th>Matadero</th>
-                <th>Firma</th>
-                <th>Proveedor</th>
-                <th>Fecha Carga</th>
-                <th style={{ textAlign: 'center' }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tropas.map((t) => (
-                <tr key={t.id}>
-                  <td><strong>{t.numero_tropa}</strong></td>
-                  <td>{t.matadero}</td>
-                  <td>{t.firma}</td>
-                  <td>{t.proveedor?.nombre || 'Sin especificar'}</td>
-                  <td>{t.fecha_ingreso ? new Date(t.fecha_ingreso).toLocaleDateString('es-AR') : '--'}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button onClick={() => activarEdicion(t)} className="btn-sm btn-primary">
-                      Editar
-                    </button>
-                  </td>
+          <div className="table-scroll" style={{ marginTop: '10px' }}>
+            <table className="table-modern">
+              <thead>
+                <tr>
+                  <th>Nro Tropa</th>
+                  <th>Matadero</th>
+                  <th>Firma</th>
+                  <th>Proveedor</th>
+                  <th>Fecha Carga</th>
+                  <th style={{ textAlign: 'center' }}>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {tropas.map((t) => (
+                  <tr key={t.id}>
+                    <td><strong>{t.numero_tropa}</strong></td>
+                    <td>{t.matadero}</td>
+                    <td>{t.firma}</td>
+                    <td>{t.proveedor?.nombre || 'Sin especificar'}</td>
+                    <td>{t.fecha_ingreso ? new Date(t.fecha_ingreso).toLocaleDateString('es-AR') : '--'}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button onClick={() => activarEdicion(t)} className="btn-sm btn-primary">
+                        Editar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
