@@ -16,7 +16,6 @@ const VistaDetalleTropa = () => {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
-  const [fechaDisponibilidad, setFechaDisponibilidad] = useState('');
   const [disponibles, setDisponibles] = useState(null);
   const [cargandoDisponibles, setCargandoDisponibles] = useState(false);
   const [errorDisponibles, setErrorDisponibles] = useState('');
@@ -62,8 +61,7 @@ const VistaDetalleTropa = () => {
     setCargandoDisponibles(true);
     setErrorDisponibles('');
     try {
-      const params = fechaDisponibilidad ? { fecha_hasta: fechaDisponibilidad } : {};
-      const res = await api.get('/piezas/disponibles', { params });
+      const res = await api.get('/piezas/disponibles');
       setDisponibles(res.data);
     } catch (error) {
       console.error('Error al cargar la disponibilidad', error);
@@ -107,15 +105,6 @@ const VistaDetalleTropa = () => {
             <span className="selection-status">Tropa seleccionada</span>
           )}
 
-          <div className="field-block">
-            <label htmlFor="fecha-disponibilidad">Disponibles hasta</label>
-            <input
-              id="fecha-disponibilidad"
-              type="date"
-              value={fechaDisponibilidad}
-              onChange={(e) => setFechaDisponibilidad(e.target.value)}
-            />
-          </div>
           <button type="button" className="btn-md btn-primary" onClick={buscarDisponibles}>
             Filtrar disponibilidad
           </button>
@@ -131,18 +120,14 @@ const VistaDetalleTropa = () => {
         <section className="card content-block" style={{ marginTop: '16px' }}>
           <div className="section-heading compact">
             <div>
-              <h3>Piezas disponibles</h3>
-              <p>
-                {fechaDisponibilidad
-                  ? `Tropas ingresadas hasta el ${new Date(`${fechaDisponibilidad}T00:00:00`).toLocaleDateString('es-AR')}, ordenadas por fecha.`
-                  : 'Todas las piezas disponibles, ordenadas por fecha de ingreso.'}
-              </p>
+              <h3>Disponibilidad en cámara</h3>
+              <p>Ordenadas por fecha de ingreso.</p>
             </div>
             <span className="status-pill">{disponibles.total} piezas</span>
           </div>
 
           {disponibles.piezas.length === 0 ? (
-            <p className="empty-copy">No hay piezas disponibles para este filtro.</p>
+            <p className="empty-copy">No hay piezas disponibles en cámara.</p>
           ) : (
             <div
               style={{

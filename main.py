@@ -807,16 +807,13 @@ def obtener_mapa_tropa(tropa_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/piezas/disponibles")
-def piezas_disponibles(fecha_hasta: date | None = None, db: Session = Depends(get_db)):
+def piezas_disponibles(db: Session = Depends(get_db)):
     query = (
         db.query(models.Pieza)
         .join(models.Tropa)
         .options(joinedload(models.Pieza.tropa))
         .filter(models.Pieza.cerrada.is_(False))
     )
-    if fecha_hasta is not None:
-        cierre = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
-        query = query.filter(models.Tropa.fecha_ingreso < cierre)
 
     piezas = []
     for pieza in query.all():
