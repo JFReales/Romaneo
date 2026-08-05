@@ -340,9 +340,13 @@ def clasificar_existencia(pieza: models.Pieza, salidas_hasta_fecha):
     salio_pierna = bool(tipos & TIPOS_PIERNA)
     salio_espalda = bool(tipos & TIPOS_ESPALDA)
 
-    if salio_pierna and not salio_espalda:
+    if salio_pierna and salio_espalda:
+        # Los dos lados ya se vendieron por separado (aunque nadie tildo el
+        # cierre de la media): no queda una media, pierna ni espalda entera.
+        return None
+    if salio_pierna:
         return "espaldas_toro" if pieza.es_toro else "espaldas"
-    if salio_espalda and not salio_pierna:
+    if salio_espalda:
         return "piernas_toro" if pieza.es_toro else "piernas"
 
     return "media_toro" if pieza.es_toro else "medias"

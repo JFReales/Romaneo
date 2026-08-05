@@ -183,6 +183,28 @@ class ImprovementsIntegrationTests(unittest.TestCase):
             "espaldas_toro",
         )
 
+    def test_06_pierna_y_espalda_vendidas_por_separado_no_cuentan_como_media(self):
+        pieza = SimpleNamespace(es_toro=False)
+
+        def salida(tipo):
+            return SimpleNamespace(tipo=tipo, cierra_pieza=False)
+
+        # Caso real: pieza #441 (Espalda 1/8 + Pierna 4/8), nadie tildo el
+        # cierre y la pieza seguia contando como "medias" completa.
+        self.assertIsNone(
+            clasificar_existencia(pieza, [salida("Espalda"), salida("Pierna")])
+        )
+
+        # Mismo caso pero con Rueda en vez de Pierna directa.
+        self.assertIsNone(
+            clasificar_existencia(pieza, [salida("Rueda"), salida("Completo"), salida("Espalda")])
+        )
+
+        pieza_toro = SimpleNamespace(es_toro=True)
+        self.assertIsNone(
+            clasificar_existencia(pieza_toro, [salida("Pierna"), salida("Espalda")])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
