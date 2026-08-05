@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../api';
 import Combobox from './Combobox';
 
+const COLORES_DISPONIBILIDAD = {
+  'Media completa': { background: '#e9f8ef', border: '#c2ebd0', color: '#166534' },
+  Pierna: { background: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+  Espalda: { background: '#fef3c7', border: '#fde68a', color: '#92400e' },
+};
+
 const VistaDetalleTropa = () => {
   const [tropas, setTropas] = useState([]);
   const [tropaId, setTropaId] = useState('');
@@ -9,6 +15,11 @@ const VistaDetalleTropa = () => {
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+
+  const [fechaDisponibilidad, setFechaDisponibilidad] = useState('');
+  const [disponibles, setDisponibles] = useState(null);
+  const [cargandoDisponibles, setCargandoDisponibles] = useState(false);
+  const [errorDisponibles, setErrorDisponibles] = useState('');
 
   const tropasPorEtiqueta = useMemo(() => new Map(
     tropas.map((tropa) => [`Tropa ${tropa.numero_tropa} - ${tropa.matadero}`, tropa]),
@@ -47,6 +58,21 @@ const VistaDetalleTropa = () => {
     }
   };
 
+  const buscarDisponibles = async () => {
+    setCargandoDisponibles(true);
+    setErrorDisponibles('');
+    try {
+      const params = fechaDisponibilidad ? { fecha_hasta: fechaDisponibilidad } : {};
+      const res = await api.get('/piezas/disponibles', { params });
+      setDisponibles(res.data);
+    } catch (error) {
+      console.error('Error al cargar la disponibilidad', error);
+      setErrorDisponibles('No se pudo cargar la disponibilidad de piezas.');
+    } finally {
+      setCargandoDisponibles(false);
+    }
+  };
+
   const seleccionarTropa = (etiqueta) => {
     const tropa = tropasPorEtiqueta.get(etiqueta);
     if (!tropa) return;
@@ -80,11 +106,87 @@ const VistaDetalleTropa = () => {
           {tropaId && (
             <span className="selection-status">Tropa seleccionada</span>
           )}
+
+          <div className="field-block">
+            <label htmlFor="fecha-disponibilidad">Disponibles hasta</label>
+            <input
+              id="fecha-disponibilidad"
+              type="date"
+              value={fechaDisponibilidad}
+              onChange={(e) => setFechaDisponibilidad(e.target.value)}
+            />
+          </div>
+          <button type="button" className="btn-md btn-primary" onClick={buscarDisponibles}>
+            Filtrar disponibilidad
+          </button>
         </div>
         <p className="field-help">Usá ↑ y ↓ para recorrer los resultados y Enter para seleccionar.</p>
         {cargando && <div className="status-info">Cargando detalle de la tropa...</div>}
         {error && <div className="alert alert-error">{error}</div>}
+        {cargandoDisponibles && <div className="status-info">Buscando piezas disponibles...</div>}
+        {errorDisponibles && <div className="alert alert-error">{errorDisponibles}</div>}
       </section>
+
+      {disponibles && !cargandoDisponibles && (
+        <section className="card content-block" style={{ marginTop: '16px' }}>
+          <div className="section-heading compact">
+            <div>
+              <h3>Piezas disponibles</h3>
+              <p>
+                {fechaDisponibilidad
+                  ? `Tropas ingresadas hasta el ${new Date(`${fechaDisponibilidad}T00:00:00`).toLocaleDateString('es-AR')}, ordenadas por fecha.`
+                  : 'Todas las piezas disponibles, ordenadas por fecha de ingreso.'}
+              </p>
+            </div>
+            <span className="status-pill">{disponibles.total} piezas</span>
+          </div>
+
+          {disponibles.piezas.length === 0 ? (
+            <p className="empty-copy">No hay piezas disponibles para este filtro.</p>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                gap: '12px',
+                marginTop: '12px',
+              }}
+            >
+              {disponibles.piezas.map((pieza) => {
+                const colores = COLORES_DISPONIBILIDAD[pieza.disponibilidad] || COLORES_DISPONIBILIDAD.Pierna;
+                return (
+                  <article
+                    key={`${pieza.numero_tropa}-${pieza.numero_pieza}`}
+                    className="card"
+                    style={{ padding: '12px', borderColor: '#cfd9e8' }}
+                  >
+                    <strong style={{ display: 'block', fontSize: '15px' }}>
+                      Tropa {pieza.numero_tropa}
+                    </strong>
+                    <span style={{ display: 'block', color: '#475569', fontSize: '13px', marginBottom: '8px' }}>
+                      Pieza #{pieza.numero_pieza} · {new Date(`${pieza.fecha_ingreso}T00:00:00`).toLocaleDateString('es-AR')}
+                    </span>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        padding: '5px 10px',
+                        borderRadius: '999px',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        background: colores.background,
+                        border: `1px solid ${colores.border}`,
+                        color: colores.color,
+                      }}
+                    >
+                      {pieza.disponibilidad}{pieza.es_toro ? ' · Toro' : ''}
+                    </span>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {datos && (
         <section className="page-container page-container-full" style={{ gap: '16px' }}>

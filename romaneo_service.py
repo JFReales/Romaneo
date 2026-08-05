@@ -9,9 +9,10 @@ import models
 
 TIPOS_SALIDA = ("Media", "Pierna", "Espalda", "Rueda", "Completo", "Vacio")
 TIPOS_PIERNA = {"Pierna", "Rueda"}
-# "Completo" se descuenta del saldo de la pierna pero, a pedido del cliente, no debe
-# consumir pierna ni espalda en la clasificacion de existencias (queda aparte).
-TIPOS_ESPALDA = {"Espalda", "Vacio"}
+# "Completo" y "Vacio" se descuentan del saldo de la pierna pero, a pedido del
+# cliente, no deben consumir pierna ni espalda en la clasificacion de
+# existencias (quedan aparte, igual que Completo).
+TIPOS_ESPALDA = {"Espalda"}
 
 # Punto 1 Critico No prioritario: en las pantallas de prestamos, Ganadera y Hacienda
 # de Raza se muestran como una sola parte frente a Erre de Mayoristas (y viceversa).

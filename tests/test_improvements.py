@@ -177,6 +177,14 @@ class ImprovementsIntegrationTests(unittest.TestCase):
         # Completo solo, sin Rueda/Pierna, todavia no debe tocar la clasificacion.
         self.assertEqual(clasificar_existencia(pieza, [salida("Completo")]), "medias")
 
+        # Vacio se comporta igual que Completo: descuenta saldo de pierna pero
+        # no dispara por si solo el cambio de categoria.
+        self.assertEqual(clasificar_existencia(pieza, [salida("Vacio")]), "medias")
+        self.assertEqual(
+            clasificar_existencia(pieza, [salida("Rueda"), salida("Vacio")]),
+            "espaldas",
+        )
+
         pieza_toro = SimpleNamespace(es_toro=True)
         self.assertEqual(
             clasificar_existencia(pieza_toro, [salida("Rueda"), salida("Completo")]),

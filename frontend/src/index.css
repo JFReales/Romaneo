@@ -536,13 +536,18 @@ td {
 
 .monitor-search-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 12px;
-  max-width: 820px;
+  max-width: 1080px;
 }
 
 .monitor-search-row .combo-field {
   flex: 1;
+}
+
+.monitor-search-row .field-block {
+  margin-bottom: 0;
 }
 
 .selection-status {

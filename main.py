@@ -806,6 +806,43 @@ def obtener_mapa_tropa(tropa_id: int, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/piezas/disponibles")
+def piezas_disponibles(fecha_hasta: date | None = None, db: Session = Depends(get_db)):
+    query = (
+        db.query(models.Pieza)
+        .join(models.Tropa)
+        .options(joinedload(models.Pieza.tropa))
+        .filter(models.Pieza.cerrada.is_(False))
+    )
+    if fecha_hasta is not None:
+        cierre = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
+        query = query.filter(models.Tropa.fecha_ingreso < cierre)
+
+    piezas = []
+    for pieza in query.all():
+        if pieza.en_stock_pierna and pieza.en_stock_espalda:
+            disponibilidad = "Media completa"
+        elif pieza.en_stock_pierna:
+            disponibilidad = "Pierna"
+        elif pieza.en_stock_espalda:
+            disponibilidad = "Espalda"
+        else:
+            continue
+
+        piezas.append({
+            "numero_tropa": pieza.tropa.numero_tropa,
+            "numero_pieza": pieza.numero_pieza,
+            "matadero": pieza.tropa.matadero,
+            "firma": pieza.tropa.firma,
+            "fecha_ingreso": pieza.tropa.fecha_ingreso.date().isoformat(),
+            "es_toro": bool(pieza.es_toro),
+            "disponibilidad": disponibilidad,
+        })
+
+    piezas.sort(key=lambda item: (item["fecha_ingreso"], item["numero_tropa"], item["numero_pieza"]))
+    return {"piezas": piezas, "total": len(piezas)}
+
+
 # --- CSV compatibility ---
 
 @app.post("/piezas/salidas-lote/")
